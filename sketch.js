@@ -90,6 +90,8 @@ new p5(function(p) {
             micLevel:  0,
             lastVisit:   null,
             totalVisits: 0,
+            sizeScale:   1.0,
+            sizeTarget:  1.0,
         };
     }
 
@@ -97,6 +99,148 @@ new p5(function(p) {
     let micAnalyser = null;
     let micActive   = false;
     let micData     = null;   // reused buffer — allocated once when mic starts
+
+    // ============================================================
+    //  TRAIL
+    // ============================================================
+
+    let SHOW_TRAIL  = false;
+    let trailPoints = [];
+    let trailHue    = 0;
+    const TRAIL_MAX = 120;
+
+    function recordTrail(c) {
+        trailHue = (trailHue + 1.2) % 360;
+        trailPoints.push({ x: c.x, y: c.y, hue: trailHue });
+        if (trailPoints.length > TRAIL_MAX) trailPoints.shift();
+    }
+
+    function drawTrail() {
+        if (trailPoints.length < 2) return;
+        p.colorMode(p.HSB, 360, 100, 100, 255);
+        p.noStroke();
+        for (let i = 0; i < trailPoints.length; i++) {
+            let t    = i / trailPoints.length;   // 0 = oldest → 1 = newest
+            let pt   = trailPoints[i];
+            let alpha = t * 200;
+            let size  = t * 14 + 2;
+            p.fill(pt.hue, 75, 95, alpha);
+            p.circle(pt.x, pt.y, size);
+        }
+        p.colorMode(p.RGB, 255);
+    }
+
+    // ============================================================
+    //  MINI MODE & PAINT LAYER
+    // ============================================================
+
+    let miniMode   = false;
+    let paintLayer = null;
+    let paintPrevX = null;
+    let paintPrevY = null;
+
+    // Paint line settings
+    let LINE_STYLE = 'solid';    // 'solid' | 'dashed' | 'dotted' | 'dot-dash'
+    let LINE_COLOR = 'rainbow';  // 'rainbow' | css hex string
+    let LINE_WIDTH = 2;
+
+    const DASH_PATTERNS = {
+        solid:    [],
+        dashed:   [14, 7],
+        dotted:   [2,  7],
+        'dot-dash': [14, 5, 2, 5],
+    };
+
+    function initPaintLayer(w, h) {
+        paintLayer = p.createGraphics(w, h);
+        paintLayer.noFill();
+        paintPrevX = null;
+        paintPrevY = null;
+    }
+
+    function drawPaintMark(c) {
+        if (paintPrevX === null) {
+            paintPrevX = c.x; paintPrevY = c.y; return;
+        }
+        // skip if creature teleported (mode switch / excited recovery)
+        if (Math.hypot(c.x - paintPrevX, c.y - paintPrevY) > 80) {
+            paintPrevX = c.x; paintPrevY = c.y; return;
+        }
+
+        // colour
+        let col;
+        if (LINE_COLOR === 'rainbow') {
+            trailHue = (trailHue + 1.5) % 360;
+            col = `hsl(${trailHue}, 80%, 55%)`;
+        } else {
+            col = LINE_COLOR;
+        }
+
+        // apply dash pattern via raw canvas context
+        let ctx = paintLayer.drawingContext;
+        ctx.setLineDash(DASH_PATTERNS[LINE_STYLE] || []);
+
+        paintLayer.stroke(col);
+        paintLayer.strokeWeight(LINE_WIDTH);
+        paintLayer.line(paintPrevX, paintPrevY, c.x, c.y);
+
+        paintPrevX = c.x;
+        paintPrevY = c.y;
+    }
+
+    // ============================================================
+    //  IDLE MOVEMENT MODE
+    // ============================================================
+
+    let MOVE_MODE   = 'off';   // 'off' | 'random' | 'grid' | 'arc'
+    let idleTimer   = 0;
+    let arcAngle    = 0;
+    let gridPhase   = 'h';     // 'h' = move horizontally first, 'v' = vertically
+
+    function updateIdleMovement(c) {
+        let pad  = miniMode ? CREATURE_SIZE * 0.1 : CREATURE_SIZE * 0.7;
+        let maxX = p.width  / 2 - pad;
+        let maxY = p.height / 2 - pad;
+        maxX = Math.max(maxX, 10);
+        maxY = Math.max(maxY, 10);
+
+        if (MOVE_MODE === 'off') {
+            c.wanderTargetX = 0;
+            c.wanderTargetY = 0;
+            return;
+        }
+
+        if (MOVE_MODE === 'random') {
+            let t  = p.frameCount * 0.012;
+            let nx = (p.noise(t,       0.0) - 0.5) * 2;
+            let ny = (p.noise(0.0, t + 5.3) - 0.5) * 2;
+            c.wanderTargetX = p.constrain(c.wanderTargetX + nx * 6, -maxX, maxX);
+            c.wanderTargetY = p.constrain(c.wanderTargetY + ny * 6, -maxY, maxY);
+        }
+
+        if (MOVE_MODE === 'grid') {
+            idleTimer--;
+            if (idleTimer <= 0) {
+                if (gridPhase === 'h') {
+                    c.wanderTargetX = p.random(-maxX, maxX);
+                    c.wanderTargetY = c.wanderY;   // freeze Y axis
+                    gridPhase = 'v';
+                } else {
+                    c.wanderTargetY = p.random(-maxY, maxY);
+                    c.wanderTargetX = c.wanderX;   // freeze X axis
+                    gridPhase = 'h';
+                }
+                idleTimer = p.floor(p.random(90, 160));
+            }
+        }
+
+        if (MOVE_MODE === 'arc') {
+            arcAngle += 0.007;
+            // Lissajous-style path — smooth figure-8 like curves
+            c.wanderTargetX = Math.cos(arcAngle)       * maxX * 0.8;
+            c.wanderTargetY = Math.sin(arcAngle * 1.6) * maxY * 0.8;
+        }
+    }
 
     // Cached DOM refs — populated in setup, never queried again
     let ui = {};
@@ -106,18 +250,8 @@ new p5(function(p) {
     //  SETUP
     // ============================================================
 
-    function isMobile() {
-        return window.innerWidth <= 768;
-    }
-
     function canvasSize() {
-        if (isMobile()) {
-            return { w: window.innerWidth, h: window.innerHeight };
-        }
-        return {
-            w: SHOW_UI ? p.windowWidth - 360 : p.windowWidth - 40,
-            h: p.windowHeight - 40,
-        };
+        return { w: window.innerWidth, h: window.innerHeight };
     }
 
     p.setup = function() {
@@ -147,6 +281,8 @@ new p5(function(p) {
         window.addEventListener('focus', () => { creature.isWatched = true; });
         window.addEventListener('blur',  () => { creature.isWatched = false; });
 
+        initPaintLayer(sz.w, sz.h);
+
         setInterval(() => { saveState(creature); creature.hour = new Date().getHours(); }, 30000);
         window.addEventListener('beforeunload', () => saveState(creature));
     };
@@ -161,6 +297,9 @@ new p5(function(p) {
 
         updateMic(creature);
         updateCreature(creature);
+        if (paintLayer) p.image(paintLayer, 0, 0);
+        if (SHOW_TRAIL) { recordTrail(creature); drawTrail(); }
+        if (miniMode) drawPaintMark(creature);
         drawCreature(creature);
 
         if (p.frameCount % 6 === 0) updateSidebar(creature); // ~10fps is plenty for UI
@@ -181,6 +320,11 @@ new p5(function(p) {
         let s = STATES[c.state];
         c.bounceAmt = p.lerp(c.bounceAmt, s.bounceAmt * BOUNCE_SCALE, 0.08);
         c.bodyAlpha = p.lerp(c.bodyAlpha, s.alphaTarget, 0.05);
+
+        // Size: full when excited, mini when movement mode is active
+        c.sizeTarget = (MOVE_MODE !== 'off' && c.exciteTimer === 0) ? 0.15 : 1.0;
+        miniMode     = (MOVE_MODE !== 'off' && c.exciteTimer === 0);
+        c.sizeScale  = p.lerp(c.sizeScale, c.sizeTarget, 0.1);
 
         // Animation phases
         c.breathe += 0.018;
@@ -213,12 +357,12 @@ new p5(function(p) {
                 }
             }
         } else {
-            c.wanderTargetX = 0;
-            c.wanderTargetY = 0;
+            updateIdleMovement(c);
         }
 
-        c.wanderX = p.lerp(c.wanderX, c.wanderTargetX, 0.04);
-        c.wanderY = p.lerp(c.wanderY, c.wanderTargetY, 0.04);
+        let lerpSpeed = MOVE_MODE === 'random' ? 0.07 : 0.04;
+        c.wanderX = p.lerp(c.wanderX, c.wanderTargetX, lerpSpeed);
+        c.wanderY = p.lerp(c.wanderY, c.wanderTargetY, lerpSpeed);
         c.x = c.originX + c.wanderX;
         c.y = c.originY + c.wanderY;
     }
@@ -243,7 +387,7 @@ new p5(function(p) {
             );
         }
 
-        p.scale(bScale);
+        p.scale(c.sizeScale * bScale);
         drawBody(c);
         drawEyes(c);
         p.pop();
@@ -293,8 +437,9 @@ new p5(function(p) {
 
     function onCanvasClick() {
         if (!micActive) startMic();
-        let d = p.dist(p.mouseX, p.mouseY, creature.x, creature.y);
-        if (d < CREATURE_SIZE / 2) {
+        let d    = p.dist(p.mouseX, p.mouseY, creature.x, creature.y);
+        let hitR = (CREATURE_SIZE / 2) * creature.sizeScale;
+        if (d < hitR) {
             creature.need = p.max(0, creature.need - CLICK_FEED);
         }
     }
@@ -395,6 +540,7 @@ new p5(function(p) {
         p.resizeCanvas(sz.w, sz.h);
         creature.originX = p.width / 2;
         creature.originY = p.height / 2;
+        initPaintLayer(sz.w, sz.h);
     };
 
 
@@ -402,9 +548,38 @@ new p5(function(p) {
     //  SIDEBAR CONTROLS  —  exposed to button onclick handlers
     // ============================================================
 
-    window._resetNeed = () => { if (creature) creature.need = 0; };
-    window._maxNeed   = () => { if (creature) creature.need = 100; };
-    window._setDecay  = v => { DECAY_RATE = v; };
-    window._setFeed   = v => { CLICK_FEED = v; };
+    window._clearPaint     = () => { if (paintLayer) { paintLayer.clear(); paintPrevX = null; paintPrevY = null; } };
+    window._setPaintStyle  = s => {
+        LINE_STYLE = s;
+        document.querySelectorAll('.paint-style-btn').forEach(b =>
+            b.classList.toggle('active', b.dataset.style === s));
+    };
+    window._setPaintColor  = v => { LINE_COLOR = v; };
+    window._setLineWidth   = v => { LINE_WIDTH = v; };
+    window._resetNeed   = () => { if (creature) creature.need = 0; };
+    window._maxNeed     = () => { if (creature) creature.need = 100; };
+    window._setDecay    = v => { DECAY_RATE = v; };
+    window._setFeed     = v => { CLICK_FEED = v; };
+    window._toggleTrail = () => {
+        SHOW_TRAIL = !SHOW_TRAIL;
+        if (!SHOW_TRAIL) trailPoints = [];
+        const btn = document.getElementById('btn-trail');
+        if (btn) {
+            btn.classList.toggle('active', SHOW_TRAIL);
+            btn.textContent = SHOW_TRAIL ? 'Trail: on' : 'Trail: off';
+        }
+    };
+
+    window._setMoveMode = m => {
+        MOVE_MODE = m;
+        idleTimer = 0;
+        arcAngle  = 0;
+        gridPhase = 'h';
+        if (m === 'off' && paintLayer) paintLayer.clear();
+        // highlight active button
+        document.querySelectorAll('.move-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.mode === m);
+        });
+    };
 
 }, document.body);

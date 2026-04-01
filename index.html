@@ -94,11 +94,67 @@
 
         <hr class="divider">
 
+        <!-- ── Movement ── -->
+        <div class="control-section">
+            <h3>Movement</h3>
+            <button id="btn-trail" class="button move-btn" style="width:100%;margin-bottom:8px"
+                onclick="window._toggleTrail && window._toggleTrail()">Trail: off</button>
+            <div class="move-btn-group">
+                <button class="button move-btn active" data-mode="off"    onclick="window._setMoveMode && window._setMoveMode('off')">Off</button>
+                <button class="button move-btn"        data-mode="random" onclick="window._setMoveMode && window._setMoveMode('random')">Random</button>
+                <button class="button move-btn"        data-mode="grid"   onclick="window._setMoveMode && window._setMoveMode('grid')">Grid</button>
+                <button class="button move-btn"        data-mode="arc"    onclick="window._setMoveMode && window._setMoveMode('arc')">Arc</button>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- ── Paint Style ── -->
+        <div class="control-section">
+            <h3>Paint Style</h3>
+
+            <div class="control-group">
+                <label>Color</label>
+                <div class="slider-row">
+                    <input type="color" id="paint-color" value="#e05c5c"
+                        oninput="window._setPaintColor && window._setPaintColor(this.value)">
+                    <button class="button secondary" style="flex:1"
+                        onclick="window._setPaintColor && window._setPaintColor('rainbow')">Rainbow</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Line style</label>
+                <div class="move-btn-group">
+                    <button class="button move-btn paint-style-btn active" data-style="solid"
+                        onclick="window._setPaintStyle && window._setPaintStyle('solid')">─ Solid</button>
+                    <button class="button move-btn paint-style-btn" data-style="dashed"
+                        onclick="window._setPaintStyle && window._setPaintStyle('dashed')">– Dashed</button>
+                    <button class="button move-btn paint-style-btn" data-style="dotted"
+                        onclick="window._setPaintStyle && window._setPaintStyle('dotted')">· Dotted</button>
+                    <button class="button move-btn paint-style-btn" data-style="dot-dash"
+                        onclick="window._setPaintStyle && window._setPaintStyle('dot-dash')">·─ Mix</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Line width</label>
+                <div class="slider-row">
+                    <input type="range" id="sl-linewidth" min="1" max="16" step="1" value="2"
+                        oninput="window._setLineWidth && window._setLineWidth(+this.value); document.getElementById('dv-linewidth').textContent = this.value">
+                    <span class="val-display" id="dv-linewidth">2</span>
+                </div>
+            </div>
+        </div>
+
+        <hr class="divider">
+
         <!-- ── Actions ── -->
         <div class="control-section">
             <h3>Actions</h3>
             <button class="button danger" onclick="window._resetNeed && window._resetNeed()">Reset need to 0</button>
             <button class="button secondary" onclick="window._maxNeed && window._maxNeed()">Max need (→ distressed)</button>
+            <button class="button secondary" onclick="window._clearPaint && window._clearPaint()">Clear paint canvas</button>
         </div>
     </div>
 
@@ -108,6 +164,8 @@
     </div>
 </div>
 
+<button id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle panel">☰</button>
+
 <!-- Mobile drawer handle — only visible on small screens -->
 <button class="drawer-handle" id="drawer-handle" onclick="toggleDrawer()" aria-label="Toggle controls">
     <span class="drawer-pip"></span>
@@ -116,6 +174,13 @@
 
 <script src="sketch.js"></script>
 <script>
+    function toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const btn     = document.getElementById('sidebar-toggle');
+        const hidden  = sidebar.classList.toggle('sidebar-hidden');
+        btn.textContent = hidden ? '☰' : '✕';
+    }
+
     function toggleDrawer() {
         const sidebar = document.querySelector('.sidebar');
         const label   = document.getElementById('drawer-label');
