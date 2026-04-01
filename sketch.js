@@ -310,7 +310,8 @@ new p5(function(p) {
         return n1 === n2 ? `${n1}+${n1}` : [n1, n2].sort().join('+');
     }
 
-    let slotImgs = {};   // keyed image icons for HUD slots
+    let slotImgs    = {};   // keyed image icons for HUD slots
+    let monsterImgs = {};   // monster type images: monsterImgs[1/2/3]
 
     p.preload = function() {
         WEAPON_PATHS.forEach((path, i) => {
@@ -322,6 +323,9 @@ new p5(function(p) {
         });
         p.loadImage('image/HP_Potion.png', img => { slotImgs.potion = img; }, () => {});
         p.loadImage('image/sword.png',     img => { slotImgs.sword  = img; }, () => {});
+        p.loadImage('image/monster_1.png', img => { monsterImgs[1] = img; }, () => {});
+        p.loadImage('image/monster_2.png', img => { monsterImgs[2] = img; }, () => {});
+        p.loadImage('image/monster_3.png', img => { monsterImgs[3] = img; }, () => {});
     };
 
     function randomWeapon() {
@@ -348,7 +352,7 @@ new p5(function(p) {
 
     function _drawOneWeapon(c, img, side) {
         let wSize = CREATURE_SIZE * c.sizeScale * 1.0;
-        let wx    = c.x + side * (CREATURE_SIZE * c.sizeScale * 0.52 + wSize * 0.38);
+        let wx    = c.x + side * (CREATURE_SIZE * c.sizeScale * 0.42 + wSize * 0.18);
         let wy    = c.y + CREATURE_SIZE * c.sizeScale * 0.08;
         p.push();
         p.translate(wx, wy);
@@ -366,6 +370,173 @@ new p5(function(p) {
         if (img0) _drawOneWeapon(c, img0,  1);
         if (img1) _drawOneWeapon(c, img1, -1);
     }
+
+
+    // ============================================================
+    //  BATTLE MODE  —  monsters spawn and creature hunts them
+    // ============================================================
+
+    let BATTLE_MODE           = false;
+    let monsters              = [];
+    let monsterSpawnTimer     = 0;
+    let attackTimer           = 0;
+    let attackAnimTimer       = 0;   // drives weapon swing animation
+
+    const MONSTER_SPAWN_INTERVAL = 180;   // frames between spawns
+    const MAX_MONSTERS           = 5;
+    const ATTACK_RANGE           = 70;    // px — creature melee reach
+    const ATTACK_COOLDOWN        = 28;    // frames between swings
+
+    // Base damage per weapon — stacks when two are equipped
+    const WEAPON_DAMAGE = {
+        sword: 12, wand: 8, hammer: 18, shield: 3, Orb: 10, dagger: 9,
+    };
+
+    function getWeaponDamage() {
+        if (currentWeapons.length === 0) return 4;   // bare hands
+        let bonus = 0;
+        for (let idx of currentWeapons) bonus += WEAPON_DAMAGE[weaponNames[idx]] || 5;
+        return bonus;
+    }
+
+    const MONSTER_DEFS = [
+        { type: 1, maxHp: 30,  speed: 1.4, radius: 22, xpReward: 3, dmgToPlayer: 8  },
+        { type: 2, maxHp: 55,  speed: 0.8, radius: 28, xpReward: 5, dmgToPlayer: 12 },
+        { type: 3, maxHp: 90,  speed: 0.4, radius: 35, xpReward: 8, dmgToPlayer: 18 },
+    ];
+
+    function spawnMonster() {
+        let def  = MONSTER_DEFS[Math.floor(p.random(MONSTER_DEFS.length))];
+        let edge = Math.floor(p.random(4));
+        let mx, my;
+        if      (edge === 0) { mx = p.random(p.width);        my = -def.radius - 10; }
+        else if (edge === 1) { mx = p.random(p.width);        my = p.height + def.radius + 10; }
+        else if (edge === 2) { mx = -def.radius - 10;         my = p.random(p.height); }
+        else                 { mx = p.width + def.radius + 10; my = p.random(p.height); }
+        monsters.push({
+            x: mx, y: my, type: def.type,
+            hp: def.maxHp, maxHp: def.maxHp,
+            speed: def.speed, radius: def.radius,
+            xpReward: def.xpReward, dmgToPlayer: def.dmgToPlayer,
+            alive: true, deathTimer: 0,
+        });
+    }
+
+    function getBattleTarget(c) {
+        let nearest = null, nearestDist = Infinity;
+        for (let m of monsters) {
+            if (!m.alive) continue;
+            let d = p.dist(c.x, c.y, m.x, m.y);
+            if (d < nearestDist) { nearestDist = d; nearest = m; }
+        }
+        return nearest;
+    }
+
+    function updateMonsters(c) {
+        if (!BATTLE_MODE) return;
+
+        // Spawn
+        monsterSpawnTimer++;
+        if (monsterSpawnTimer >= MONSTER_SPAWN_INTERVAL &&
+            monsters.filter(m => m.alive).length < MAX_MONSTERS) {
+            spawnMonster();
+            monsterSpawnTimer = 0;
+        }
+
+        // Move alive monsters toward creature; tick death timers
+        for (let m of monsters) {
+            if (!m.alive) { m.deathTimer--; continue; }
+            let dx = c.x - m.x, dy = c.y - m.y;
+            let dist = Math.hypot(dx, dy) || 1;
+            m.x += (dx / dist) * m.speed;
+            m.y += (dy / dist) * m.speed;
+        }
+
+        // Creature attacks nearest monster within range
+        attackTimer = Math.max(0, attackTimer - 1);
+        if (attackTimer === 0) {
+            let nearest = getBattleTarget(c);
+            if (nearest) {
+                let d = p.dist(c.x, c.y, nearest.x, nearest.y);
+                if (d <= ATTACK_RANGE + nearest.radius) {
+                    let dmg = 15 + Math.floor(p.random(15));
+                    nearest.hp -= dmg;
+                    spawnFloat(nearest.x, nearest.y - nearest.radius - 10,
+                               `-${dmg}`, [255, 80, 80]);
+                    attackTimer = ATTACK_COOLDOWN;
+
+                    if (nearest.hp <= 0) {
+                        nearest.alive      = false;
+                        nearest.deathTimer = 40;
+                        let prevLv = rpgLevel();
+                        rpgFeeds  += nearest.xpReward;
+                        c.need     = p.min(100, c.need + nearest.dmgToPlayer);
+                        spawnFloat(c.x, c.y - 30, `+${nearest.xpReward} XP`,  [255, 210, 60]);
+                        spawnFloat(c.x, c.y - 52, `-${nearest.dmgToPlayer} HP`, [255, 100, 80]);
+                        if (rpgLevel() > prevLv)
+                            spawnFloat(c.x, c.y - 76, '✦ LEVEL UP! ✦', [255, 210, 60]);
+                    }
+                }
+            }
+        }
+
+        // Remove fully expired dead monsters
+        monsters = monsters.filter(m => m.alive || m.deathTimer > 0);
+    }
+
+    function drawMonsters() {
+        for (let m of monsters) {
+            if (!m.alive && m.deathTimer <= 0) continue;
+            let t     = m.alive ? 1 : m.deathTimer / 40;
+            let alpha = t * 255;
+            let sc    = m.alive ? 1 : 1 + (1 - t) * 0.6;
+            let size  = m.radius * 2.5;
+
+            p.push();
+            p.translate(m.x, m.y);
+            p.scale(sc);
+
+            let img = monsterImgs[m.type];
+            if (img) {
+                p.tint(255, 255, 255, alpha);
+                p.imageMode(p.CENTER);
+                p.image(img, 0, 0, size, size);
+                p.noTint();
+            } else {
+                p.noStroke();
+                p.fill(200, 60, 60, alpha);
+                p.circle(0, 0, size);
+            }
+
+            // HP bar
+            if (m.alive) {
+                let barW  = size * 0.9;
+                let barH  = 5;
+                let barYm = -m.radius * 1.55;
+                let hpRat = m.hp / m.maxHp;
+                p.noStroke();
+                p.fill(50, 20, 20, 200);
+                p.rect(-barW / 2, barYm, barW, barH, 2);
+                p.fill(220, 50, 50, 220);
+                p.rect(-barW / 2, barYm, barW * hpRat, barH, 2);
+            }
+
+            p.pop();
+        }
+    }
+
+    function toggleBattleMode() {
+        BATTLE_MODE = !BATTLE_MODE;
+        if (!BATTLE_MODE) {
+            monsters          = [];
+            monsterSpawnTimer = 0;
+            attackTimer       = 0;
+        } else {
+            // First monster spawns quickly
+            monsterSpawnTimer = MONSTER_SPAWN_INTERVAL - 60;
+        }
+    }
+
 
     p.setup = function() {
         let sz  = canvasSize();
@@ -413,7 +584,9 @@ new p5(function(p) {
         updateCreature(creature);
         if (paintLayer) p.image(paintLayer, 0, 0);
         if (SHOW_TRAIL) { recordTrail(creature); drawTrail(); }
-        if (miniMode) drawPaintMark(creature);
+        if (miniMode && !BATTLE_MODE) drawPaintMark(creature);
+        updateMonsters(creature);
+        drawMonsters();
         drawCreature(creature);
         drawWeapon(creature);
         drawNameplate(creature);
@@ -441,9 +614,10 @@ new p5(function(p) {
         c.bounceAmt = p.lerp(c.bounceAmt, s.bounceAmt * BOUNCE_SCALE, 0.08);
         c.bodyAlpha = p.lerp(c.bodyAlpha, s.alphaTarget, 0.05);
 
-        // Size: full when excited, mini when movement mode is active
-        c.sizeTarget = (MOVE_MODE !== 'off' && c.exciteTimer === 0) ? 0.15 : 1.0;
-        miniMode     = (MOVE_MODE !== 'off' && c.exciteTimer === 0);
+        // Size: full when excited, mini when movement or battle mode is active
+        let shouldMini = (MOVE_MODE !== 'off' || BATTLE_MODE) && c.exciteTimer === 0;
+        c.sizeTarget = shouldMini ? 0.15 : 1.0;
+        miniMode     = shouldMini;
         c.sizeScale  = p.lerp(c.sizeScale, c.sizeTarget, 0.1);
 
         // Animation phases
@@ -477,11 +651,25 @@ new p5(function(p) {
                 }
             }
         } else {
-            updateIdleMovement(c);
+            if (BATTLE_MODE) {
+                let target = getBattleTarget(c);
+                if (target) {
+                    // Chase the nearest monster, clamped to canvas
+                    c.wanderTargetX = p.constrain(target.x - c.originX,
+                                                  -c.originX + 20, p.width  - c.originX - 20);
+                    c.wanderTargetY = p.constrain(target.y - c.originY,
+                                                  -c.originY + 20, p.height - c.originY - 20);
+                } else {
+                    updateIdleMovement(c);
+                }
+            } else {
+                updateIdleMovement(c);
+            }
         }
 
-        // lower lerp = softer easing into new direction (smoother turns)
-        let lerpSpeed = MOVE_MODE === 'random' ? 0.018
+        // lower lerp = softer easing; battle mode uses fast lerp to track monsters
+        let lerpSpeed = BATTLE_MODE          ? 0.04
+                      : MOVE_MODE === 'random' ? 0.018
                       : MOVE_MODE === 'grid'   ? 0.012
                       : MOVE_MODE === 'arc'    ? 0.022
                       : 0.04;
@@ -712,8 +900,8 @@ new p5(function(p) {
               action: randomCostume },
             { icon: '⚔️', label: 'Weapon',  imgKey: 'sword',  isActive: () => currentWeapons.length > 0,
               action: randomWeapon },
-            { icon: '🧹', label: 'Clear',   isActive: () => false,
-              action: () => window._clearPaint && window._clearPaint() },
+            { icon: '⚔', label: 'Battle',  isActive: () => BATTLE_MODE,
+              action: toggleBattleMode },
             { icon: '🎲', label: 'Random',  isActive: () => MOVE_MODE === 'random',
               action: () => window._setMoveMode(MOVE_MODE === 'random' ? 'off' : 'random') },
             { icon: '📐', label: 'Grid',    isActive: () => MOVE_MODE === 'grid',
@@ -725,8 +913,8 @@ new p5(function(p) {
 
     function feedCreature() {
         creature.need = p.max(0, creature.need - CLICK_FEED);
+        let prevLv = rpgLevel();
         rpgFeeds++;
-        let prevLv = rpgLevel() - 1;
         spawnFloat(creature.x, creature.y, `+${CLICK_FEED} HP`, [80, 215, 95]);
         if (rpgLevel() > prevLv)
             spawnFloat(creature.x, creature.y - 32, '✦ LEVEL UP! ✦', [255, 210, 60]);
@@ -859,6 +1047,14 @@ new p5(function(p) {
     function tryRpgDialog(c) {
         rpgDialogTimer = Math.max(0, rpgDialogTimer - 1);
         if (rpgDialog || rpgDialogTimer > 0) return;
+        // Priority: low HP warning (more urgent in battle mode)
+        if (c.need > 75 && p.random() < (BATTLE_MODE ? 0.006 : 0.003)) {
+            const warnings = ['HP Critical! Feed me!', 'I need healing now!', 'Click to restore HP!'];
+            rpgDialog = { text: warnings[Math.floor(p.random(warnings.length))],
+                          life: 220, maxLife: 220 };
+            rpgDialogTimer = 140;
+            return;
+        }
         if (p.random() < 0.0012) {
             let lines = RPG_LINES[c.state] || RPG_LINES.neutral;
             rpgDialog = { text: lines[Math.floor(p.random(lines.length))], life: 200, maxLife: 200 };
