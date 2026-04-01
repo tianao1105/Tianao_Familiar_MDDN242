@@ -393,6 +393,68 @@ body {
     border-color: var(--dark);
 }
 
+/* ── RPG stat pills ── */
+
+.rpg-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.rpg-stat-pill {
+    background: #16141a;
+    border: 1px solid #3a3450;
+    border-radius: 6px;
+    padding: 5px 4px;
+    text-align: center;
+}
+
+.rpg-label {
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #a080ff;
+}
+
+.rpg-val {
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffd050;
+}
+
+/* ── Decoration button group ── */
+
+.deco-btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.deco-btn-group .deco-btn {
+    width: 100%;
+    margin-bottom: 0;
+    background: white;
+    color: var(--dark);
+    border: 1px solid var(--powder-blue);
+    font-size: 13px;
+    padding: 8px 6px;
+    text-align: center;
+    letter-spacing: 0.01em;
+}
+
+.deco-btn-group .deco-btn:hover  { background: var(--azure); }
+
+.deco-btn-group .deco-btn.active {
+    background: var(--dark);
+    color: white;
+    border-color: var(--dark);
+}
+
 /* ── Drawer handle — hidden on desktop ── */
 
 .drawer-handle { display: none; }

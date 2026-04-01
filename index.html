@@ -68,6 +68,54 @@
 
         <hr class="divider">
 
+        <!-- ── Character ── -->
+        <div class="control-section">
+            <h3>Character</h3>
+            <div class="control-group">
+                <label>Name</label>
+                <div class="slider-row">
+                    <input type="text" id="rpg-name" maxlength="12" placeholder="FAMILIAR"
+                        style="flex:1;padding:5px 8px;border:1px solid var(--powder-blue);border-radius:6px;font-family:'Courier New',monospace;font-size:12px;background:white;color:var(--dark);"
+                        oninput="window._setRpgName && window._setRpgName(this.value)">
+                </div>
+            </div>
+            <div class="rpg-stats">
+                <div class="rpg-stat-pill">
+                    <span class="rpg-label">LV</span>
+                    <span class="rpg-val" id="ui-rpg-lv">1</span>
+                </div>
+                <div class="rpg-stat-pill">
+                    <span class="rpg-label">XP</span>
+                    <span class="rpg-val" id="ui-rpg-xp">0</span>
+                </div>
+                <div class="rpg-stat-pill">
+                    <span class="rpg-label">FEEDS</span>
+                    <span class="rpg-val" id="ui-rpg-feeds">0</span>
+                </div>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- ── Decorations ── -->
+        <div class="control-section">
+            <h3>Decorations</h3>
+            <div class="deco-btn-group">
+                <button class="button deco-btn" data-deco="hat"
+                    onclick="window._toggleDeco && window._toggleDeco('hat')">🎩 Hat</button>
+                <button class="button deco-btn" data-deco="crown"
+                    onclick="window._toggleDeco && window._toggleDeco('crown')">👑 Crown</button>
+                <button class="button deco-btn" data-deco="bowtie"
+                    onclick="window._toggleDeco && window._toggleDeco('bowtie')">🎀 Bow</button>
+                <button class="button deco-btn" data-deco="sparkles"
+                    onclick="window._toggleDeco && window._toggleDeco('sparkles')">✨ Sparkles</button>
+                <button class="button deco-btn" data-deco="blush"
+                    onclick="window._toggleDeco && window._toggleDeco('blush')">🌸 Blush</button>
+            </div>
+        </div>
+
+        <hr class="divider">
+
         <!-- ── Behaviour settings ── -->
         <div class="control-section">
             <h3>Behaviour</h3>
