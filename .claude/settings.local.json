@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check sketch.js)",
+      "Bash(powershell -command 'Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile\\('\\\\''c:/Users/41370/OneDrive/文档/GitHub/Tianao_Familiar_MDDN242/image/human.png'\\\\''\\); Write-Host $img.Width $img.Height')"
+    ]
+  }
+}

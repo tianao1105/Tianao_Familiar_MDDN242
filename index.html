@@ -6,219 +6,178 @@
     <title>Your Creature — MDDN242</title>
     <link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>👾</text></svg>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="container">
 
-    <!-- ════════════════════ SIDEBAR ════════════════════ -->
-    <div class="sidebar">
-
-        <div class="hour-display">
-            <span class="hour-num" id="ui-hour">--</span><span class="hour-period" id="ui-period">--</span>
-        </div>
-
-        <div class="state-card">
-            <div class="state-card-label">state</div>
-            <div class="state-card-value" id="ui-state">neutral</div>
-            <div class="state-card-desc" id="ui-desc">need is rising — slightly transparent</div>
-            <div class="need-wrap">
-                <div class="need-track">
-                    <div class="need-fill" id="ui-need-bar" style="width:50%"></div>
-                </div>
-                <div class="need-labels">
-                    <span>need: <b id="ui-need-val">50</b></span>
-                </div>
-            </div>
-        </div>
-        <!-- ── Stats ── -->
-        <div class="stats-row">
-            <div class="stat-pill">
-                <span class="s-label">visits</span>
-                <span class="s-val" id="ui-visits">1</span>
-            </div>
-            <div class="stat-pill">
-                <span class="s-label">mic</span>
-                <span class="s-val" id="ui-mic">—</span>
-            </div>
-            <div class="stat-pill">
-                <span class="s-label">excited</span>
-                <span class="s-val" id="ui-excited">no</span>
-            </div>
-            <div class="stat-pill">
-                <span class="s-label">focus</span>
-                <span class="s-val" id="ui-watched">on</span>
-            </div>
-        </div>
-
-
-        <hr class="divider">
-
-        <!-- ── Influence ── -->
-        <div class="control-section">
-            <h3>Influence</h3>
-            <ul class="hint-list">
-                <li><span class="key">click</span> Click the creature to feed it (−need)</li>
-                <li><span class="key">tab away</span> Need rises faster when unwatched</li>
-                <li><span class="key">loud noise</span> Triggers excited state (click first to allow mic)</li>
-                <li><span class="key">time away</span> AFK need builds up over hours</li>
-            </ul>
-        </div>
-
-        <hr class="divider">
-
-        <!-- ── Character ── -->
-        <div class="control-section">
-            <h3>Character</h3>
-            <div class="control-group">
-                <label>Name</label>
-                <div class="slider-row">
-                    <input type="text" id="rpg-name" maxlength="12" placeholder="FAMILIAR"
-                        style="flex:1;padding:5px 8px;border:1px solid var(--powder-blue);border-radius:6px;font-family:'Courier New',monospace;font-size:12px;background:white;color:var(--dark);"
-                        oninput="window._setRpgName && window._setRpgName(this.value)">
-                </div>
-            </div>
-            <div class="rpg-stats">
-                <div class="rpg-stat-pill">
-                    <span class="rpg-label">LV</span>
-                    <span class="rpg-val" id="ui-rpg-lv">1</span>
-                </div>
-                <div class="rpg-stat-pill">
-                    <span class="rpg-label">XP</span>
-                    <span class="rpg-val" id="ui-rpg-xp">0</span>
-                </div>
-                <div class="rpg-stat-pill">
-                    <span class="rpg-label">FEEDS</span>
-                    <span class="rpg-val" id="ui-rpg-feeds">0</span>
-                </div>
-            </div>
-        </div>
-
-        <hr class="divider">
-
-        <!-- ── Decorations ── -->
-        <div class="control-section">
-            <h3>Decorations</h3>
-            <div class="deco-btn-group">
-                <button class="button deco-btn" data-deco="hat"
-                    onclick="window._toggleDeco && window._toggleDeco('hat')">🎩 Hat</button>
-                <button class="button deco-btn" data-deco="crown"
-                    onclick="window._toggleDeco && window._toggleDeco('crown')">👑 Crown</button>
-                <button class="button deco-btn" data-deco="bowtie"
-                    onclick="window._toggleDeco && window._toggleDeco('bowtie')">🎀 Bow</button>
-                <button class="button deco-btn" data-deco="sparkles"
-                    onclick="window._toggleDeco && window._toggleDeco('sparkles')">✨ Sparkles</button>
-                <button class="button deco-btn" data-deco="blush"
-                    onclick="window._toggleDeco && window._toggleDeco('blush')">🌸 Blush</button>
-            </div>
-        </div>
-
-        <hr class="divider">
-
-        <!-- ── Behaviour settings ── -->
-        <div class="control-section">
-            <h3>Behaviour</h3>
-
-            <div class="control-group">
-                <label>Need decay rate</label>
-                <div class="slider-row">
-                    <input type="range" id="sl-decay" min="0.001" max="0.045" step="0.001" value="0.003"
-                        oninput="window._setDecay && window._setDecay(+this.value); document.getElementById('dv-decay').textContent = parseFloat(this.value).toFixed(3)">
-                    <span class="val-display" id="dv-decay">0.003</span>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label>Click feed amount</label>
-                <div class="slider-row">
-                    <input type="range" id="sl-feed" min="5" max="50" step="5" value="20"
-                        oninput="window._setFeed && window._setFeed(+this.value); document.getElementById('dv-feed').textContent = this.value">
-                    <span class="val-display" id="dv-feed">20</span>
-                </div>
-            </div>
-
-        </div>
-
-        <hr class="divider">
-
-        <!-- ── Movement ── -->
-        <div class="control-section">
-            <h3>Movement</h3>
-            <button id="btn-trail" class="button move-btn" style="width:100%;margin-bottom:8px"
-                onclick="window._toggleTrail && window._toggleTrail()">Trail: off</button>
-            <div class="move-btn-group">
-                <button class="button move-btn active" data-mode="off"    onclick="window._setMoveMode && window._setMoveMode('off')">Off</button>
-                <button class="button move-btn"        data-mode="random" onclick="window._setMoveMode && window._setMoveMode('random')">Random</button>
-                <button class="button move-btn"        data-mode="grid"   onclick="window._setMoveMode && window._setMoveMode('grid')">Grid</button>
-                <button class="button move-btn"        data-mode="arc"    onclick="window._setMoveMode && window._setMoveMode('arc')">Arc</button>
-            </div>
-        </div>
-
-        <hr class="divider">
-
-        <!-- ── Paint Style ── -->
-        <div class="control-section">
-            <h3>Paint Style</h3>
-
-            <div class="control-group">
-                <label>Color</label>
-                <div class="slider-row">
-                    <input type="color" id="paint-color" value="#e05c5c"
-                        oninput="window._setPaintColor && window._setPaintColor(this.value)">
-                    <button class="button secondary" style="flex:1"
-                        onclick="window._setPaintColor && window._setPaintColor('rainbow')">Rainbow</button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label>Line style</label>
-                <div class="move-btn-group">
-                    <button class="button move-btn paint-style-btn active" data-style="solid"
-                        onclick="window._setPaintStyle && window._setPaintStyle('solid')">─ Solid</button>
-                    <button class="button move-btn paint-style-btn" data-style="dashed"
-                        onclick="window._setPaintStyle && window._setPaintStyle('dashed')">– Dashed</button>
-                    <button class="button move-btn paint-style-btn" data-style="dotted"
-                        onclick="window._setPaintStyle && window._setPaintStyle('dotted')">· Dotted</button>
-                    <button class="button move-btn paint-style-btn" data-style="dot-dash"
-                        onclick="window._setPaintStyle && window._setPaintStyle('dot-dash')">·─ Mix</button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label>Line width</label>
-                <div class="slider-row">
-                    <input type="range" id="sl-linewidth" min="1" max="16" step="1" value="2"
-                        oninput="window._setLineWidth && window._setLineWidth(+this.value); document.getElementById('dv-linewidth').textContent = this.value">
-                    <span class="val-display" id="dv-linewidth">2</span>
-                </div>
-            </div>
-        </div>
-
-        <hr class="divider">
-
-        <!-- ── Actions ── -->
-        <div class="control-section">
-            <h3>Actions</h3>
-            <button class="button danger" onclick="window._resetNeed && window._resetNeed()">Reset need to 0</button>
-            <button class="button secondary" onclick="window._maxNeed && window._maxNeed()">Max need (→ distressed)</button>
-            <button class="button secondary" onclick="window._clearPaint && window._clearPaint()">Clear paint canvas</button>
-        </div>
-    </div>
-
     <!-- ════════════════════ CANVAS ════════════════════ -->
     <div class="canvas-area">
         <div id="canvas-container"></div>
     </div>
-</div>
+
+    <!-- ════════════════════ RPG PANEL ════════════════════ -->
+    <div class="sidebar rpg-panel">
+
+        <!-- ── Top bar: level · name · clock ── -->
+        <div class="rpg-topbar">
+            <div class="rpg-lv-tag">LV<span id="ui-rpg-lv">1</span></div>
+            <input type="text" id="rpg-name" class="rpg-name-input" maxlength="12"
+                   placeholder="FAMILIAR"
+                   oninput="window._setRpgName && window._setRpgName(this.value)">
+            <div class="rpg-clock">
+                <span id="ui-hour">--</span><span class="rpg-ampm" id="ui-period">am</span>
+            </div>
+        </div>
+
+        <!-- ── HP hearts + XP bar ── -->
+        <div class="rpg-vitals">
+            <div class="rpg-hearts" id="rpg-hearts-row">♥♥♥♥♡</div>
+            <div class="rpg-xp-wrap">
+                <div class="rpg-xp-track">
+                    <div class="rpg-xp-fill" id="ui-rpg-xp-fill" style="width:0%"></div>
+                </div>
+                <span class="rpg-xp-label">XP <span id="ui-rpg-xp">0</span>/20</span>
+            </div>
+        </div>
+
+        <!-- ── Equipment grid ── -->
+        <div class="equip-area">
+
+            <!-- LEFT: decorations -->
+            <div class="equip-col">
+                <div class="equip-slot deco-btn" data-deco="hat"
+                     onclick="window._toggleDeco && window._toggleDeco('hat')" title="Hat">
+                    <div class="equip-icon" id="deco-icon-hat">—</div>
+                    <div class="equip-lbl" id="deco-lbl-hat">Empty</div>
+                </div>
+                <div class="equip-slot deco-btn" data-deco="crown"
+                     onclick="window._toggleDeco && window._toggleDeco('crown')" title="Crown">
+                    <div class="equip-icon" id="deco-icon-crown">—</div>
+                    <div class="equip-lbl" id="deco-lbl-crown">Empty</div>
+                </div>
+                <div class="equip-slot deco-btn" data-deco="bowtie"
+                     onclick="window._toggleDeco && window._toggleDeco('bowtie')" title="Bow">
+                    <div class="equip-icon" id="deco-icon-bowtie">—</div>
+                    <div class="equip-lbl" id="deco-lbl-bowtie">Empty</div>
+                </div>
+                <div class="equip-slot deco-btn" data-deco="blush"
+                     onclick="window._toggleDeco && window._toggleDeco('blush')" title="Blush">
+                    <div class="equip-icon" id="deco-icon-blush">—</div>
+                    <div class="equip-lbl" id="deco-lbl-blush">Empty</div>
+                </div>
+                <div class="equip-slot deco-btn" data-deco="sparkles"
+                     onclick="window._toggleDeco && window._toggleDeco('sparkles')" title="Sparkles">
+                    <div class="equip-icon" id="deco-icon-sparkles">—</div>
+                    <div class="equip-lbl" id="deco-lbl-sparkles">Empty</div>
+                </div>
+            </div>
+
+            <!-- CENTER: character portrait -->
+            <div class="char-col">
+                <div class="char-portrait">
+                    <img src="image/human.png" class="char-img" alt=""
+                         onerror="this.style.display='none'">
+                    <!-- decoration overlays -->
+                    <div class="pdeco" id="pdeco-hat">🎩</div>
+                    <div class="pdeco" id="pdeco-crown">👑</div>
+                    <div class="pdeco" id="pdeco-bowtie">🎀</div>
+                    <div class="pdeco pdeco-blush" id="pdeco-blush">
+                        <span class="blush-l"></span><span class="blush-r"></span>
+                    </div>
+                    <div class="pdeco" id="pdeco-sparkles">✨</div>
+                    <!-- eyes -->
+                    <div class="portrait-eye portrait-eye-l" id="portrait-eye-l">
+                        <div class="portrait-pupil" id="portrait-pupil-l"></div>
+                    </div>
+                    <div class="portrait-eye portrait-eye-r" id="portrait-eye-r">
+                        <div class="portrait-pupil" id="portrait-pupil-r"></div>
+                    </div>
+                    <div class="char-state-badge" id="ui-state">neutral</div>
+                </div>
+                <!-- need bar below portrait -->
+                <div class="need-track" style="margin-top:6px">
+                    <div class="need-fill" id="ui-need-bar" style="width:50%"></div>
+                </div>
+                <div class="char-need-label">
+                    need <span id="ui-need-val">50</span>
+                </div>
+            </div>
+
+            <!-- RIGHT: weapons + actions -->
+            <div class="equip-col">
+                <div class="equip-slot weapon-slot" id="equip-wpn-0"
+                     onclick="window._randomWeapon && window._randomWeapon()" title="Main Hand">
+                    <div class="equip-icon" id="ws-icon-0">—</div>
+                    <div class="equip-lbl" id="ws-label-0">Empty</div>
+                </div>
+                <div class="equip-slot weapon-slot" id="equip-wpn-1"
+                     onclick="window._randomWeapon && window._randomWeapon()" title="Off Hand">
+                    <div class="equip-icon" id="ws-icon-1">—</div>
+                    <div class="equip-lbl" id="ws-label-1">Empty</div>
+                </div>
+                <div class="equip-slot action-slot"
+                     onclick="window._randomWeapon && window._randomWeapon()" title="Roll weapons">
+                    <div class="equip-icon">🎲</div>
+                    <div class="equip-lbl">Roll</div>
+                </div>
+                <div class="equip-slot action-slot" id="battle-btn"
+                     onclick="window._toggleBattle && window._toggleBattle()" title="Toggle battle">
+                    <div class="equip-icon">⚔</div>
+                    <div class="equip-lbl" id="battle-lbl">Battle</div>
+                </div>
+                <div class="equip-slot action-slot"
+                     onclick="window._randomCostume && window._randomCostume()" title="Random costume">
+                    <div class="equip-icon">🎭</div>
+                    <div class="equip-lbl">Dress</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Action row ── -->
+        <div class="rpg-actions">
+            <button class="rpg-btn" onclick="window._feedCreature && window._feedCreature()">
+                🍶 Feed
+            </button>
+            <button class="rpg-btn secondary" onclick="window._clearPaint && window._clearPaint()">
+                🧹 Clear
+            </button>
+            <button class="rpg-btn secondary" onclick="window._resetNeed && window._resetNeed()">
+                ❤ Heal
+            </button>
+        </div>
+
+        <!-- ── Behaviour sliders (collapsed section) ── -->
+        <details class="rpg-details">
+            <summary class="rpg-details-title">⚙ Settings</summary>
+            <div class="rpg-settings-body">
+                <div class="rpg-setting-row">
+                    <label>Need decay</label>
+                    <input type="range" min="0.001" max="0.045" step="0.001" value="0.003"
+                        oninput="window._setDecay && window._setDecay(+this.value)">
+                </div>
+                <div class="rpg-setting-row">
+                    <label>Feed amount</label>
+                    <input type="range" min="5" max="50" step="5" value="20"
+                        oninput="window._setFeed && window._setFeed(+this.value)">
+                </div>
+                <div class="rpg-setting-row">
+                    <label>Paint color</label>
+                    <div style="display:flex;gap:4px;flex:1">
+                        <input type="color" value="#e05c5c" style="flex:1;height:24px;border:none;border-radius:4px;cursor:pointer"
+                            oninput="window._setPaintColor && window._setPaintColor(this.value)">
+                        <button class="rpg-btn secondary" style="flex:1;padding:2px 4px;font-size:10px"
+                            onclick="window._setPaintColor && window._setPaintColor('rainbow')">🌈</button>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+    </div><!-- end .sidebar -->
+
+</div><!-- end .container -->
 
 <button id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle panel">☰</button>
-
-<!-- Mobile drawer handle — only visible on small screens -->
-<button class="drawer-handle" id="drawer-handle" onclick="toggleDrawer()" aria-label="Toggle controls">
-    <span class="drawer-pip"></span>
-    <span class="drawer-label" id="drawer-label">controls</span>
-</button>
 
 <script src="sketch.js"></script>
 <script>
@@ -227,13 +186,6 @@
         const btn     = document.getElementById('sidebar-toggle');
         const hidden  = sidebar.classList.toggle('sidebar-hidden');
         btn.textContent = hidden ? '☰' : '✕';
-    }
-
-    function toggleDrawer() {
-        const sidebar = document.querySelector('.sidebar');
-        const label   = document.getElementById('drawer-label');
-        const open    = sidebar.classList.toggle('drawer-open');
-        label.textContent = open ? 'close' : 'controls';
     }
 </script>
 </body>

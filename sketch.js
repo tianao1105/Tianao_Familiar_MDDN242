@@ -134,10 +134,11 @@ new p5(function(p) {
     //  MINI MODE & PAINT LAYER
     // ============================================================
 
-    let miniMode   = false;
-    let paintLayer = null;
-    let paintPrevX = null;
-    let paintPrevY = null;
+    let miniMode        = false;
+    let paintLayer      = null;
+    let paintPrevX      = null;
+    let paintPrevY      = null;
+    let paintLayerDirty = false;   // true only when paintLayer has content
 
     // Paint line settings
     let LINE_STYLE = 'solid';    // 'solid' | 'dashed' | 'dotted' | 'dot-dash'
@@ -183,6 +184,7 @@ new p5(function(p) {
 
         paintLayer.strokeWeight(LINE_WIDTH);
         paintLayer.line(paintPrevX, paintPrevY, c.x, c.y);
+        paintLayerDirty = true;
 
         paintPrevX = c.x;
         paintPrevY = c.y;
@@ -312,6 +314,7 @@ new p5(function(p) {
 
     let slotImgs    = {};   // keyed image icons for HUD slots
     let monsterImgs = {};   // monster type images: monsterImgs[1/2/3]
+    let humanImg    = null;
 
     p.preload = function() {
         WEAPON_PATHS.forEach((path, i) => {
@@ -326,6 +329,7 @@ new p5(function(p) {
         p.loadImage('image/monster_1.png', img => { monsterImgs[1] = img; }, () => {});
         p.loadImage('image/monster_2.png', img => { monsterImgs[2] = img; }, () => {});
         p.loadImage('image/monster_3.png', img => { monsterImgs[3] = img; }, () => {});
+        p.loadImage('image/human.png',     img => { humanImg = img; },       () => {});
     };
 
     function randomWeapon() {
@@ -338,6 +342,7 @@ new p5(function(p) {
         let w1 = available[Math.floor(p.random(available.length))];
         let w2 = available[Math.floor(p.random(available.length))];
         currentWeapons = [w1, w2];
+        updateWeaponSlots();
 
         // show combo comment via dialog bubble
         let key      = getComboKey(weaponNames[w1], weaponNames[w2]);
@@ -496,12 +501,11 @@ new p5(function(p) {
             p.translate(m.x, m.y);
             p.scale(sc);
 
+            p.drawingContext.globalAlpha = alpha / 255;
             let img = monsterImgs[m.type];
             if (img) {
-                p.tint(255, 255, 255, alpha);
                 p.imageMode(p.CENTER);
                 p.image(img, 0, 0, size, size);
-                p.noTint();
             } else {
                 p.noStroke();
                 p.fill(200, 60, 60, alpha);
@@ -535,10 +539,12 @@ new p5(function(p) {
             // First monster spawns quickly
             monsterSpawnTimer = MONSTER_SPAWN_INTERVAL - 60;
         }
+        updateBattleBtn();
     }
 
 
     p.setup = function() {
+        p.pixelDensity(1);          // use 1:1 pixels — avoids 2× overdraw on HiDPI/scaled displays
         let sz  = canvasSize();
         let cnv = p.createCanvas(sz.w, sz.h);
         cnv.parent('canvas-container');
@@ -553,13 +559,8 @@ new p5(function(p) {
         ui.hour    = document.getElementById('ui-hour');
         ui.period  = document.getElementById('ui-period');
         ui.state   = document.getElementById('ui-state');
-        ui.desc    = document.getElementById('ui-desc');
         ui.needVal = document.getElementById('ui-need-val');
         ui.needBar = document.getElementById('ui-need-bar');
-        ui.visits  = document.getElementById('ui-visits');
-        ui.excited = document.getElementById('ui-excited');
-        ui.watched = document.getElementById('ui-watched');
-        ui.mic     = document.getElementById('ui-mic');
 
         // Track focus via events — no polling in the draw loop
         window.addEventListener('focus', () => { creature.isWatched = true; });
@@ -567,6 +568,7 @@ new p5(function(p) {
 
         initPaintLayer(sz.w, sz.h);
         initHudSlots();
+   // set once — never changed per-frame
 
         setInterval(() => { saveState(creature); creature.hour = new Date().getHours(); }, 30000);
         window.addEventListener('beforeunload', () => saveState(creature));
@@ -582,7 +584,7 @@ new p5(function(p) {
 
         updateMic(creature);
         updateCreature(creature);
-        if (paintLayer) p.image(paintLayer, 0, 0);
+        if (paintLayerDirty) p.image(paintLayer, 0, 0);
         if (SHOW_TRAIL) { recordTrail(creature); drawTrail(); }
         if (miniMode && !BATTLE_MODE) drawPaintMark(creature);
         updateMonsters(creature);
@@ -844,19 +846,20 @@ new p5(function(p) {
 
         p.push();
         p.noStroke();
-        p.textFont('Courier New');
+
 
         // Lv (blue) + Name (gold) — larger, centered
         p.textSize(18);
-        p.textAlign(p.CENTER, p.CENTER);
-        let fullLine = `${lvTxt}  ${nameTxt}`;
-        let lvW = p.textWidth(lvTxt);
-        let fullW = p.textWidth(fullLine);
-        let startX = nx - fullW / 2;
+        p.textAlign(p.LEFT, p.CENTER);
+        let lvW    = lvTxt.length * 10.8;   // ~10.8px per char at size 18, Courier New
+        let nameW  = nameTxt.length * 10.8;
+        let gapW   = 2 * 10.8;
+        let totalW = lvW + gapW + nameW;
+        let startX = nx - totalW / 2;
         p.fill(150, 200, 255);
-        p.text(lvTxt, startX + lvW / 2, ny - 18);
+        p.text(lvTxt, startX, ny - 18);
         p.fill(255, 215, 65);
-        p.text(nameTxt, startX + lvW + p.textWidth('  ') + p.textWidth(nameTxt) / 2, ny - 18);
+        p.text(nameTxt, startX + lvW + gapW, ny - 18);
 
         // Hearts row — larger
         let heartSize = 22;
@@ -882,13 +885,34 @@ new p5(function(p) {
 
     const DECO_KEYS = ['hat', 'crown', 'bowtie', 'sparkles', 'blush'];
 
+    const DECO_DISPLAY = {
+        hat:      { icon: '🎩', label: 'Hat' },
+        crown:    { icon: '👑', label: 'Crown' },
+        bowtie:   { icon: '🎀', label: 'Bow' },
+        blush:    { icon: '🌸', label: 'Blush' },
+        sparkles: { icon: '✨', label: 'Stars' },
+    };
+
+    function syncDecoUI() {
+        DECO_KEYS.forEach(k => {
+            const on      = DECORATIONS[k];
+            const btn     = document.querySelector(`.deco-btn[data-deco="${k}"]`);
+            const overlay = document.getElementById(`pdeco-${k}`);
+            const iconEl  = document.getElementById(`deco-icon-${k}`);
+            const lblEl   = document.getElementById(`deco-lbl-${k}`);
+            if (btn)    btn.classList.toggle('active', on);
+            if (overlay) overlay.classList.toggle('active', on);
+            if (iconEl)  iconEl.textContent = on ? DECO_DISPLAY[k].icon  : '—';
+            if (lblEl)   lblEl.textContent  = on ? DECO_DISPLAY[k].label : 'Empty';
+        });
+    }
+
     function randomCostume() {
-        // clear all decorations first
         DECO_KEYS.forEach(k => { DECORATIONS[k] = false; });
-        // randomly pick 1–3 to enable
         let shuffled = DECO_KEYS.slice().sort(() => p.random() - 0.5);
         let count = Math.floor(p.random(1, 4));
         shuffled.slice(0, count).forEach(k => { DECORATIONS[k] = true; });
+        syncDecoUI();
         spawnFloat(creature.x, creature.y - 20, '✦ New Look! ✦', [255, 180, 220]);
     }
 
@@ -902,22 +926,12 @@ new p5(function(p) {
               action: randomWeapon },
             { icon: '⚔', label: 'Battle',  isActive: () => BATTLE_MODE,
               action: toggleBattleMode },
-            { icon: '🎲', label: 'Random',  isActive: () => MOVE_MODE === 'random',
-              action: () => window._setMoveMode(MOVE_MODE === 'random' ? 'off' : 'random') },
-            { icon: '📐', label: 'Grid',    isActive: () => MOVE_MODE === 'grid',
-              action: () => window._setMoveMode(MOVE_MODE === 'grid' ? 'off' : 'grid') },
-            { icon: '🌀', label: 'Arc',     isActive: () => MOVE_MODE === 'arc',
-              action: () => window._setMoveMode(MOVE_MODE === 'arc' ? 'off' : 'arc') },
         ];
     }
 
     function feedCreature() {
         creature.need = p.max(0, creature.need - CLICK_FEED);
-        let prevLv = rpgLevel();
-        rpgFeeds++;
         spawnFloat(creature.x, creature.y, `+${CLICK_FEED} HP`, [80, 215, 95]);
-        if (rpgLevel() > prevLv)
-            spawnFloat(creature.x, creature.y - 32, '✦ LEVEL UP! ✦', [255, 210, 60]);
     }
 
     function drawBottomHUD(c) {
@@ -938,11 +952,11 @@ new p5(function(p) {
             p.fill(110, 90, 255, 90);
             p.rect(0, xpY, p.width * xpRat, 3);
         }
-        p.textFont('Courier New');
+
 
         // ── Left panel: Lv + hearts ──
         let cy = hudY + slotAreaH / 2;
-        p.textFont('Courier New');
+
         p.textAlign(p.LEFT, p.CENTER);
         p.textSize(16);
         p.fill(220, 185, 55);
@@ -997,7 +1011,7 @@ new p5(function(p) {
             }
 
             // label
-            p.textFont('Courier New');
+    
             p.textSize(7);
             p.fill(active ? [195, 165, 255] : [120, 110, 140]);
             p.textAlign(p.CENTER, p.BOTTOM);
@@ -1011,7 +1025,7 @@ new p5(function(p) {
         }
 
         // ── Right panel: character name ──
-        p.textFont('Courier New');
+
         p.textSize(11);
         p.fill(255, 208, 65);
         p.textAlign(p.RIGHT, p.CENTER);
@@ -1025,7 +1039,7 @@ new p5(function(p) {
 
     function updateDrawFloatNums() {
         p.push();
-        p.textFont('Courier New');
+
         p.textAlign(p.CENTER, p.CENTER);
         for (let i = floatNums.length - 1; i >= 0; i--) {
             let f = floatNums[i];
@@ -1071,9 +1085,13 @@ new p5(function(p) {
                   : t < 0.18 ? p.map(t, 0.18, 0, 255, 0) : 255;
 
         let fontSize = 13;
-        p.textFont('Courier New');
-        p.textSize(fontSize);
-        let tw  = p.textWidth(rpgDialog.text) + 32;
+        // cache bubble width — only compute when text changes
+        if (!rpgDialog.tw) {
+    
+            p.textSize(fontSize);
+            rpgDialog.tw = p.textWidth(rpgDialog.text) + 32;
+        }
+        let tw = rpgDialog.tw;
         let bh  = 36;
         let bx  = c.x;
         let by  = c.y - CREATURE_SIZE * c.sizeScale * 0.60 - 90;
@@ -1122,9 +1140,14 @@ new p5(function(p) {
     // ── EDIT THIS — redesign the creature's body ──────────────
 
     function drawBody(c) {
-        p.noStroke();
-        p.fill(...bodyColour, c.bodyAlpha);
-        p.ellipse(0, 0, CREATURE_SIZE, CREATURE_SIZE);
+        if (humanImg) {
+            p.imageMode(p.CENTER);
+            p.image(humanImg, 0, 0, CREATURE_SIZE * 2.0, CREATURE_SIZE * 2.0);
+        } else {
+            p.noStroke();
+            p.fill(...bodyColour, c.bodyAlpha);
+            p.ellipse(0, 0, CREATURE_SIZE, CREATURE_SIZE);
+        }
     }
 
 
@@ -1257,25 +1280,51 @@ new p5(function(p) {
         ui.hour.textContent    = c.hour % 12 || 12;
         ui.period.textContent  = c.hour < 12 ? 'am' : 'pm';
         ui.state.textContent   = c.state;
-        ui.desc.textContent    = STATE_DESCRIPTIONS[c.state] || '';
         ui.needVal.textContent = Math.floor(c.need);
-        ui.visits.textContent  = c.totalVisits;
-        ui.excited.textContent = c.exciteTimer > 0 ? 'yes!' : 'no';
-        ui.watched.textContent = c.isWatched ? 'on' : 'away';
-        ui.mic.textContent     = micActive ? c.micLevel.toFixed(2) : '—';
+
+        // Hearts: HP = 100 - need; 5 hearts max
+        const heartsEl = document.getElementById('rpg-hearts-row');
+        if (heartsEl) {
+            let hp     = Math.round(100 - c.need);
+            let full   = Math.round((hp / 100) * 5);
+            heartsEl.textContent = '♥'.repeat(full) + '♡'.repeat(5 - full);
+        }
 
         // RPG stats
-        const lvEl    = document.getElementById('ui-rpg-lv');
-        const xpEl    = document.getElementById('ui-rpg-xp');
-        const feedsEl = document.getElementById('ui-rpg-feeds');
-        if (lvEl)    lvEl.textContent    = rpgLevel();
-        if (xpEl)    xpEl.textContent    = `${rpgXP()}/${XP_PER_LEVEL}`;
-        if (feedsEl) feedsEl.textContent = rpgFeeds;
+        const lvEl   = document.getElementById('ui-rpg-lv');
+        const xpEl   = document.getElementById('ui-rpg-xp');
+        const xpFill = document.getElementById('ui-rpg-xp-fill');
+        if (lvEl)   lvEl.textContent  = rpgLevel();
+        if (xpEl)   xpEl.textContent  = `${rpgXP()}/${XP_PER_LEVEL}`;
+        if (xpFill) xpFill.style.width = (rpgXP() / XP_PER_LEVEL * 100) + '%';
 
         ui.needBar.style.width = c.need + '%';
         ui.needBar.style.backgroundColor =
             c.need < 30 ? '#788c5d' :
             c.need < 70 ? '#c9973a' : '#c0522a';
+
+        // Portrait eyes: pupils track mouse relative to portrait center
+        const eyeL = document.getElementById('portrait-eye-l');
+        const eyeR = document.getElementById('portrait-eye-r');
+        if (eyeL && eyeR) {
+            const rect = eyeL.closest('.char-portrait').getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top  + rect.height / 2;
+            const dx = p.mouseX - (rect.left + rect.width  / 2);
+            const dy = p.mouseY - (rect.top  + rect.height / 2);
+            const maxShift = 3;
+            const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+            const tx = (dx / dist) * Math.min(dist * 0.15, maxShift);
+            const ty = (dy / dist) * Math.min(dist * 0.15, maxShift);
+            const pupilSize = c.state === 'excited' ? '70%' : '50%';
+            for (const eye of [eyeL, eyeR]) {
+                const pupil = eye.querySelector('.portrait-pupil');
+                if (pupil) {
+                    pupil.style.transform = `translate(${tx}px, ${ty}px)`;
+                    pupil.style.width = pupilSize;
+                }
+            }
+        }
     }
 
 
@@ -1286,9 +1335,11 @@ new p5(function(p) {
     p.windowResized = function() {
         let sz = canvasSize();
         p.resizeCanvas(sz.w, sz.h);
-        creature.originX = p.width / 2;
-        creature.originY = p.height / 2;
-        initPaintLayer(sz.w, sz.h);
+        if (creature) {
+            creature.originX = p.width / 2;
+            creature.originY = p.height / 2;
+        }
+        if (paintLayer) initPaintLayer(sz.w, sz.h);
     };
 
 
@@ -1303,11 +1354,10 @@ new p5(function(p) {
     window._toggleDeco = key => {
         if (!(key in DECORATIONS)) return;
         DECORATIONS[key] = !DECORATIONS[key];
-        const btn = document.querySelector(`.deco-btn[data-deco="${key}"]`);
-        if (btn) btn.classList.toggle('active', DECORATIONS[key]);
+        syncDecoUI();
     };
 
-    window._clearPaint     = () => { if (paintLayer) { paintLayer.clear(); paintPrevX = null; paintPrevY = null; } };
+    window._clearPaint     = () => { if (paintLayer) { paintLayer.clear(); paintPrevX = null; paintPrevY = null; paintLayerDirty = false; } };
     window._setPaintStyle  = s => {
         LINE_STYLE = s;
         document.querySelectorAll('.paint-style-btn').forEach(b =>
@@ -1335,10 +1385,41 @@ new p5(function(p) {
         arcAngle  = 0;
         gridPhase = 'h';
         if (m === 'off' && paintLayer) paintLayer.clear();
-        // highlight active button
-        document.querySelectorAll('.move-btn').forEach(b => {
-            b.classList.toggle('active', b.dataset.mode === m);
-        });
     };
+
+    // ── RPG panel helpers ──────────────────────────────────
+    window._feedCreature    = feedCreature;
+    window._randomCostume   = randomCostume;
+    window._randomWeapon    = randomWeapon;
+    window._toggleBattle    = toggleBattleMode;
+
+    const WEAPON_EMOJI = { sword:'⚔️', wand:'🪄', hammer:'🔨', shield:'🛡️', Orb:'🔮', dagger:'🗡️' };
+
+    function updateWeaponSlots() {
+        for (let i = 0; i < 2; i++) {
+            let slotEl  = document.getElementById(`equip-wpn-${i}`);
+            let iconEl  = document.getElementById(`ws-icon-${i}`);
+            let labelEl = document.getElementById(`ws-label-${i}`);
+            if (!iconEl || !labelEl) continue;
+            if (currentWeapons[i] !== undefined) {
+                let name = weaponNames[currentWeapons[i]];
+                let path = WEAPON_PATHS[currentWeapons[i]];
+                iconEl.innerHTML = `<img src="${path}" style="width:28px;height:28px;object-fit:contain">`;
+                labelEl.textContent = name;
+                if (slotEl) slotEl.classList.add('active');
+            } else {
+                iconEl.textContent = '—';
+                labelEl.textContent = 'Empty';
+                if (slotEl) slotEl.classList.remove('active');
+            }
+        }
+    }
+
+    function updateBattleBtn() {
+        const el  = document.getElementById('battle-btn');
+        const lbl = document.getElementById('battle-lbl');
+        if (el)  el.classList.toggle('active', BATTLE_MODE);
+        if (lbl) lbl.textContent = BATTLE_MODE ? 'ON!' : 'Battle';
+    }
 
 }, document.body);
