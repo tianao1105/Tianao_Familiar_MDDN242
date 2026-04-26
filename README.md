@@ -26,7 +26,7 @@ A pixel-style virtual companion based on p5.js, featuring an RPG combat system, 
 - The level can be reset in the settings menu
 
 ### Battle System
-- Click the ⚔ **Battle** button to activate the battle mode.
+- Click the **Battle** button to activate the battle mode.
 - Monsters spawn from the edge of the screen and start chasing once they enter the sensing range of the screen.
 - Allies automatically attack the nearest monster.
 - **Monsters are divided into three levels**: Normal / Elite / Boss. The proportion of Bosses dynamically adjusts according to the player's level (at level 100, Bosses account for approximately 50%).
@@ -42,7 +42,7 @@ A pixel-style virtual companion based on p5.js, featuring an RPG combat system, 
 - The skill icon is displayed below the sidebar attributes, with a cooling mask and a ready highlight indication.
 
 ### Weapon System
-- Click 🎲 **Roll** to randomly equip two weapons
+- Click **Roll** to randomly equip two weapons
 - Each weapon has an exclusive attribute bonus, which is displayed after the corresponding attribute.
 
 | Weapon | Exclusive Attribute | Effect |
@@ -72,13 +72,13 @@ The left column of the sidebar allows you to switch between decorations: hat / c
 | Operation | Effect |
 |-----------|--------|
 | Click the canvas | Feed / Resume idle state |
-| 🍶 Feed | Feed |
-| 🧹 Clear | Clear the canvas doodles |
-| ❤ Heal | Full health (reduces required value to zero) |
-| 🎲 Roll | Randomly change weapons |
-| ⚔ Battle | Switch to combat mode |
-| 🎭 Dress | Randomly change clothes |
-| ⚠ Reset Level | Reset level and experience |
+| Feed | Feed |
+| Clear | Clear the canvas doodles |
+| Heal | Full health (reduces required value to zero) |
+| Roll | Randomly change weapons |
+| Battle | Switch to combat mode |
+| Dress | Randomly change clothes |
+| Reset Level | Reset level and experience |
 
 ---
 
