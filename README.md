@@ -1,115 +1,85 @@
-# Familiar 
+# Familiar
 
-一个基于 p5.js 的像素风格虚拟伙伴，拥有 RPG 战斗系统、实时天气、昼夜变化背景等功能。
+A pixel-style virtual companion based on p5.js, featuring an RPG combat system, real-time weather, and background with day and night changes. 
 
+## Function Introduction 
+### Partner System
+- Partners have **Need values**, which increase automatically over time.
+- Clicking on the canvas can feed the partner, reducing the need value.
+- The need value affects the partner's state: `happy` / `neutral` / `distressed` / `excited`.
+- If the page is not opened for a long time, the need value will accumulate based on the duration of the absence. 
+### RPG Panel
+| Attribute | Explanation | |------|------|
+| HP | Converted from the demand value. The lower the demand, the higher the HP. |
+| MP | Automatically replenished during battles, used for skill activation. |
+| ATK | Attack power, increases with level. |
+| SPD | Movement speed, increases with level. |
+| DEF | Defense reduction (in %), +1% per level from 1 to 10, +0.5% per level after 10. | 
+### Level and Experience
+- Earn XP by defeating monsters
+- Level up every 20 XP points, and various attributes will increase accordingly
+- The level can be reset in the settings menu 
+### Battle System
+- Click the ⚔ **Battle** button to activate the battle mode.
+- Monsters spawn from the edge of the screen and start chasing once they enter the sensing range of the screen.
+- Allies automatically attack the nearest monster.
+- **Monsters are divided into three levels**: Normal / Elite / Boss. The proportion of Bosses dynamically adjusts according to the player's level (at level 100, Bosses account for approximately 50%). 
+### Skill System
+| Skill | Unlock Level | Range | Damage | Mana Consumption | |------|----------|------|------|-----------|
+| Water Bomb | Level 5 | 260 px | Attack × 1.4 | 15 |
+| Fireball | Level 10 | 520 px | Attack × 2.2 | 25 | 
+- After level 10, fireballs are released first; during the cooling period of fireballs, water bombs are released as a substitute.
+- The skill icon is displayed below the sidebar attributes, with a cooling mask and a ready highlight indication. 
+### Weapon System
+- Click 🎲 **Roll** to randomly equip two weapons
+- Each weapon has an exclusive attribute bonus, which is displayed after the corresponding attribute. 
+| Weapon | Exclusive Attribute | Effect | |------|----------|------|
+| Sword | ATK | +12 Attack |
+| Hammer | ATK | +18 Attack |
+| Dagger | SPD | Increases movement speed |
+| Shield | DEF | +8% Damage reduction |
+| Orb | MP | Accelerates Mana regeneration |
+| Wand | ATK | Fires an additional secondary projectile when casting spells | 
+### Automatic Battle upon Hang-up
+- If there is no click on the page for more than 30 seconds, the battle mode will automatically start.
+- Clicking on the canvas will restore the normal state. The companions will say: "You left me to fight alone?" !" *
+
+### Day and Night with Weather
+- The background color changes according to the actual time (deep blue at midnight → rose color in the morning → light green at noon → orange-red in the evening)
+- If the browser allows location tracking, it automatically retrieves the local weather and superimposes the corresponding color tone (warm color for sunny days, cool gray for rainy days, bright white for snowy days) 
+### Decoration System
+The left column of the sidebar allows you to switch between decorations: hat / crown / bow tie / blush / glitter. 
 ---
 
-## 快速开始
-
-直接用浏览器打开 `index.html` 即可运行，无需安装任何依赖。
-
+## Operating Instructions 
+| Operation | Effect | |------|------|
+| Click the canvas | Feed / Resume idle state |
+| 🍶 Feed | Feed |
+| 🧹 Clear | Clear the canvas doodles |
+| ❤ Heal | Full health (reduces required value to zero) |
+| 🎲 Roll | Randomly change weapons |
+| ⚔ Battle | Switch to combat mode |
+| 🎭 Dress | Randomly change clothes |
+| ⚠ Reset Level | Reset level and experience | 
 ---
 
-## 功能介绍
-
-### 伙伴系统
-- 伙伴拥有 **需求值（Need）**，随时间自动上升
-- 点击画布可以喂食，降低需求值
-- 需求值影响伙伴状态：`happy` / `neutral` / `distressed` / `excited`
-- 长时间未打开页面会根据离开时长累积需求值
-
-### RPG 面板
-| 属性 | 说明 |
-|------|------|
-| HP | 由需求值换算，需求越低 HP 越高 |
-| MP | 战斗中自动回复，用于释放技能 |
-| ATK | 攻击力，随等级提升 |
-| SPD | 移动速度，随等级提升 |
-| DEF | 防御减伤（%），1–10 级每级 +1%，10 级后每级 +0.5% |
-
-### 等级与经验
-- 击败怪物获得 XP
-- 每 20 XP 升一级，各项属性随之提升
-- 可在设置中重置等级
-
-### 战斗系统
-- 点击 ⚔ **Battle** 按钮开启战斗模式
-- 怪物从屏幕边缘生成，进入屏幕中央的感知范围后开始追击
-- 伙伴自动攻击最近的怪物
-- **怪物分三个等级**：Normal / Elite / Boss，随玩家等级动态调整比例（100 级时 Boss 占约 50%）
-
-### 技能系统
-| 技能 | 解锁等级 | 射程 | 伤害 | Mana 消耗 |
-|------|----------|------|------|-----------|
-| 水弹 | Lv 5 | 260 px | ATK × 1.4 | 15 |
-| 火球 | Lv 10 | 520 px | ATK × 2.2 | 25 |
-
-- 10 级后火球优先释放；火球冷却期间补位释放水弹
-- 技能图标显示在侧边栏属性下方，有冷却遮罩和就绪高亮提示
-
-### 武器系统
-- 点击 🎲 **Roll** 随机装备两件武器
-- 每种武器对应一个专属属性加成，显示在对应属性后方
-
-| 武器 | 专属属性 | 效果 |
-|------|----------|------|
-| 剑 Sword | ATK | +12 攻击 |
-| 锤 Hammer | ATK | +18 攻击 |
-| 匕首 Dagger | SPD | 提升移动速度 |
-| 盾 Shield | DEF | +8% 减伤 |
-| 法球 Orb | MP | 加快 Mana 回复 |
-| 法杖 Wand | ATK | 施法时额外发射一枚副弹 |
-
-### 挂机自动战斗
-- 页面超过 **30 秒无点击** 自动进入战斗模式
-- 点击画布恢复正常状态，伙伴会说：*"You left me to fight alone?!"*
-
-### 昼夜与天气
-- 背景颜色随真实时间变化（午夜深蓝 → 清晨玫瑰 → 正午淡绿 → 黄昏橙红）
-- 若浏览器允许定位，自动获取当地天气，叠加对应色调（晴天偏暖、雨天偏冷灰、雪天偏亮白）
-
-### 装饰系统
-侧边栏左列可切换装饰：帽子 / 王冠 / 蝴蝶结 / 腮红 / 闪光
-
+## Technology Stack 
+- [p5.js](https://p5js.org/) v1.7.0 — Canvas Rendering
+- [Open-Meteo](https://open-meteo.com/) — Free Weather API
+- [WorldTimeAPI](https://worldtimeapi.org/) — Time Zone Time API
+- [Nominatim](https://nominatim.org/) — Reverse Geocoding (City Name) 
 ---
 
-## 操作说明
-
-| 操作 | 效果 |
-|------|------|
-| 点击画布 | 喂食 / 恢复挂机状态 |
-| 🍶 Feed | 喂食 |
-| 🧹 Clear | 清除画布涂鸦 |
-| ❤ Heal | 满血（需求值归零） |
-| 🎲 Roll | 随机更换武器 |
-| ⚔ Battle | 开关战斗模式 |
-| 🎭 Dress | 随机更换服装 |
-| ⚠ Reset Level | 重置等级与经验 |
-
----
-
-## 技术栈
-
-- [p5.js](https://p5js.org/) v1.7.0 — 画布渲染
-- [Open-Meteo](https://open-meteo.com/) — 免费天气 API
-- [WorldTimeAPI](https://worldtimeapi.org/) — 时区时间 API
-- [Nominatim](https://nominatim.org/) — 逆地理编码（城市名）
-
----
-
-## 文件结构
-
-├── index.html       # 页面结构与 RPG 侧边栏
-├── style.css        # 样式
-├── sketch.js        # 主逻辑（p5.js）
-└── image/
-├── human.png        # 角色立绘
-├── crown.png        # 侧边栏 Toggle 图标
-├── water_magic.png  # 水弹图标
-├── fair_magic.png   # 火球图标
-├── sword.png        # 武器图片
-└── ...              # 其他武器 / 怪物图片
-
+## File Structure 
+├── index.html       # Page structure and RPG sidebar
+├── style.css        # Styles
+├── sketch.js        # Main logic (p5.js) └── image/
+├── human.png        # Character portrait
+├── crown.png        # Toggle icon for sidebar
+├── water_magic.png  # Water bomb icon
+├── fair_magic.png   # Fireball icon
+├── sword.png        # Weapon image
+└── ...              # Other weapon / monster images 
 
 
 ---
