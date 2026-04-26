@@ -30,9 +30,7 @@ new p5(function(p) {
     let EXCITED_FRAMES = 40;     // how long the excited state lasts
     let BOUNCE_SCALE   = 1.0;    // multiplier for all bounce amounts
 
-    // Colours — also editable via sidebar colour pickers
-    let bgColour   = [220, 242, 210];  // background (r, g, b)
-    let bodyColour = [20,  20,  20];   // body fill  (r, g, b)
+    let bodyColour = [20, 20, 20];   // body fill fallback when humanImg is absent
 
 
     // ============================================================
@@ -48,13 +46,6 @@ new p5(function(p) {
         neutral:    { bounceAmt: 0.02, shakeAmt: 0.0, alphaTarget: 180 },
         distressed: { bounceAmt: 0.01, shakeAmt: 1.5, alphaTarget: 127 },
         excited:    { bounceAmt: 0.10, shakeAmt: 0.0, alphaTarget: 255 },
-    };
-
-    const STATE_DESCRIPTIONS = {
-        happy:      'need is low — bouncy, fully visible',
-        neutral:    'need is rising — slightly transparent',
-        distressed: 'need is high — shaking, 50% transparent',
-        excited:    'heard a sound! — big pupils, roaming',
     };
 
     // First match wins — checked top to bottom every frame.
@@ -315,6 +306,8 @@ new p5(function(p) {
     let slotImgs    = {};   // keyed image icons for HUD slots
     let monsterImgs = {};   // monster type images: monsterImgs[1/2/3]
     let humanImg    = null;
+    let backgroundImg = null;
+    let bgLayer       = null;  // pre-scaled to canvas size — blitted each frame with no scaling
 
     p.preload = function() {
         WEAPON_PATHS.forEach((path, i) => {
@@ -324,12 +317,15 @@ new p5(function(p) {
                 ()  => { weaponImgs[i] = null; }
             );
         });
-        p.loadImage('image/HP_Potion.png', img => { slotImgs.potion = img; }, () => {});
-        p.loadImage('image/sword.png',     img => { slotImgs.sword  = img; }, () => {});
+        p.loadImage('image/HP_Potion.png',   img => { slotImgs.potion = img; }, () => {});
+        p.loadImage('image/sword.png',       img => { slotImgs.sword  = img; }, () => {});
+        p.loadImage('image/water_magic.png', img => { slotImgs.water  = img; }, () => {});
+        p.loadImage('image/fair_magic.png',  img => { slotImgs.fire   = img; }, () => {});
         p.loadImage('image/monster_1.png', img => { monsterImgs[1] = img; }, () => {});
         p.loadImage('image/monster_2.png', img => { monsterImgs[2] = img; }, () => {});
         p.loadImage('image/monster_3.png', img => { monsterImgs[3] = img; }, () => {});
-        p.loadImage('image/human.png',     img => { humanImg = img; },       () => {});
+        p.loadImage('image/human.png',       img => { humanImg     = img; }, () => {});
+        p.loadImage('image/background.png', img => { backgroundImg = img; }, () => {});
     };
 
     function randomWeapon() {
@@ -385,16 +381,32 @@ new p5(function(p) {
     let monsters              = [];
     let monsterSpawnTimer     = 0;
     let attackTimer           = 0;
-    let attackAnimTimer       = 0;   // drives weapon swing animation
+
+    const IDLE_TIMEOUT        = 30000;  // ms before auto-battle
+    let   lastInteractionTime = 0;      // set in setup
+    let   autoBattleActive    = false;
 
     const MONSTER_SPAWN_INTERVAL = 180;   // frames between spawns
     const MAX_MONSTERS           = 5;
     const ATTACK_RANGE           = 70;    // px — creature melee reach
     const ATTACK_COOLDOWN        = 28;    // frames between swings
+    const AGGRO_RADIUS           = 220;   // px from screen center — monsters only chase inside this
+    const WATER_RANGE            = 260;   // px — max range for water spell
+    const FIRE_RANGE             = 520;   // px — max range for fire spell
 
     // Base damage per weapon — stacks when two are equipped
     const WEAPON_DAMAGE = {
         sword: 12, wand: 8, hammer: 18, shield: 3, Orb: 10, dagger: 9,
+    };
+
+    // Each weapon's specialty stat bonus (display + effect)
+    const WEAPON_STAT_BONUS = {
+        sword:  { stat: 'atk',  display: '+12',    col: [255, 100,  80] },
+        hammer: { stat: 'atk',  display: '+18',    col: [255, 155,  60] },
+        dagger: { stat: 'spd',  display: '+0.8',   col: [100, 235, 165] },
+        shield: { stat: 'def',  display: '+8%',    col: [ 80, 185, 255] },
+        Orb:    { stat: 'mp',   display: '+regen',  col: [155, 110, 255] },
+        wand:   { stat: 'atk',  display: '+✦',     col: [195, 135, 255] },
     };
 
     function getWeaponDamage() {
@@ -404,14 +416,73 @@ new p5(function(p) {
         return bonus;
     }
 
-    const MONSTER_DEFS = [
-        { type: 1, maxHp: 30,  speed: 1.4, radius: 22, xpReward: 3, dmgToPlayer: 8  },
-        { type: 2, maxHp: 55,  speed: 0.8, radius: 28, xpReward: 5, dmgToPlayer: 12 },
-        { type: 3, maxHp: 90,  speed: 0.4, radius: 35, xpReward: 8, dmgToPlayer: 18 },
+    // ── Player stats (derived from level) ────────────────────────
+    function playerMaxHp()   { return 100 + (rpgLevel() - 1) * 10; }
+    function playerAtk()     { return 10  + (rpgLevel() - 1) * 1;  }
+    function playerSpd()     { return 0.04 + (rpgLevel() - 1) * 0.003; }
+    function playerMaxMana() { return 60  + (rpgLevel() - 1) * 8;  }
+    function playerDef() {
+        const lv = rpgLevel();
+        return lv <= 10 ? lv * 1.0 : 10 + (lv - 10) * 0.5;
+    }  // base % damage reduction from level only
+
+    // Totals used in combat — include weapon bonuses
+    function playerDefTotal() {
+        let def = playerDef();
+        for (const idx of currentWeapons) {
+            if (idx !== undefined && weaponNames[idx] === 'shield') def += 8;
+        }
+        return def;
+    }
+    function playerSpdTotal() {
+        let spd = playerSpd();
+        for (const idx of currentWeapons) {
+            if (idx !== undefined && weaponNames[idx] === 'dagger') spd += 0.008;
+        }
+        return spd;
+    }
+
+    // ── Monster tier definitions ──────────────────────────────────
+    // tier: 1=Normal  2=Elite  3=Boss
+    const MONSTER_BASE = [
+        { tier: 1, label: 'Normal', baseHp: 30,  baseRadius: 22, speed: 1.4, xpBase: 3,  dmgBase: 8,  col: [200,200,200] },
+        { tier: 2, label: 'Elite',  baseHp: 70,  baseRadius: 34, speed: 0.9, xpBase: 8,  dmgBase: 15, col: [255,200,60]  },
+        { tier: 3, label: 'Boss',   baseHp: 160, baseRadius: 52, speed: 0.5, xpBase: 18, dmgBase: 25, col: [255,80,80]   },
     ];
 
+    // How many of each tier can appear per level bracket [Normal, Elite, Boss]
+    // Boss reaches 50% at lv 100
+    function tierWeights(lv) {
+        if (lv <= 3)   return [10, 2,  0];  // boss  0%
+        if (lv <= 8)   return [ 7, 4,  1];  // boss  8%
+        if (lv <= 15)  return [ 5, 5,  2];  // boss 17%
+        if (lv <= 25)  return [ 4, 5,  3];  // boss 25%
+        if (lv <= 40)  return [ 3, 5,  4];  // boss 33%
+        if (lv <= 60)  return [ 2, 5,  5];  // boss 42%
+        if (lv <= 100) return [ 1, 4,  5];  // boss 50%
+        return                [ 0, 4,  6];  // boss 60%
+    }
+
+    function scaledMonsterDef(lv) {
+        // pick tier by weighted random
+        const w   = tierWeights(lv);
+        const total = w.reduce((a,b) => a+b, 0);
+        let roll  = p.random(total), cumul = 0, base = MONSTER_BASE[0];
+        for (let i = 0; i < MONSTER_BASE.length; i++) {
+            cumul += w[i];
+            if (roll < cumul) { base = MONSTER_BASE[i]; break; }
+        }
+        const lvMult  = 1 + (lv - 1) * 0.18;
+        const radius  = Math.round(base.baseRadius + (lv - 1) * (base.tier * 0.8));
+        const maxHp   = Math.round(base.baseHp * lvMult * (radius / base.baseRadius));
+        const dmg     = Math.round(base.dmgBase * (1 + (lv - 1) * 0.12));
+        const xp      = base.xpBase + (lv - 1) * base.tier;
+        return { tier: base.tier, label: base.label, col: base.col,
+                 type: base.tier, maxHp, speed: base.speed, radius, xpReward: xp, dmgToPlayer: dmg };
+    }
+
     function spawnMonster() {
-        let def  = MONSTER_DEFS[Math.floor(p.random(MONSTER_DEFS.length))];
+        let def  = scaledMonsterDef(rpgLevel());
         let edge = Math.floor(p.random(4));
         let mx, my;
         if      (edge === 0) { mx = p.random(p.width);        my = -def.radius - 10; }
@@ -420,21 +491,134 @@ new p5(function(p) {
         else                 { mx = p.width + def.radius + 10; my = p.random(p.height); }
         monsters.push({
             x: mx, y: my, type: def.type,
+            tier: def.tier, label: def.label, col: def.col,
             hp: def.maxHp, maxHp: def.maxHp,
             speed: def.speed, radius: def.radius,
             xpReward: def.xpReward, dmgToPlayer: def.dmgToPlayer,
             alive: true, deathTimer: 0,
+            aggroed: false,
         });
     }
 
     function getBattleTarget(c) {
         let nearest = null, nearestDist = Infinity;
         for (let m of monsters) {
-            if (!m.alive) continue;
+            if (!m.alive || !m.aggroed) continue;
             let d = p.dist(c.x, c.y, m.x, m.y);
             if (d < nearestDist) { nearestDist = d; nearest = m; }
         }
         return nearest;
+    }
+
+    function updateSpells(c) {
+        if (!BATTLE_MODE) return;
+
+        // Mana regeneration — Orb boosts rate
+        let manaRegen = 0.12;
+        for (const idx of currentWeapons) {
+            if (idx !== undefined && weaponNames[idx] === 'Orb') manaRegen += 0.10;
+        }
+        playerMana = Math.min(playerMaxMana(), playerMana + manaRegen);
+
+        waterCooldown = Math.max(0, waterCooldown - 1);
+        fireCooldown  = Math.max(0, fireCooldown  - 1);
+
+        const lv = rpgLevel();
+
+        // Each spell has its own max range — find nearest target within that range
+        let fireTarget = null, fireBest = Infinity;
+        let waterTarget = null, waterBest = Infinity;
+        for (let m of monsters) {
+            if (!m.alive) continue;
+            const d = p.dist(c.x, c.y, m.x, m.y);
+            if (d < FIRE_RANGE  && d < fireBest)  { fireBest  = d; fireTarget  = m; }
+            if (d < WATER_RANGE && d < waterBest) { waterBest = d; waterTarget = m; }
+        }
+
+        if (lv >= 10 && fireCooldown === 0 && playerMana >= 25 && fireTarget) {
+            castSpell(c, fireTarget, 'fire');
+            playerMana  -= 25;
+            fireCooldown = 90;
+        } else if (lv >= 5 && waterCooldown === 0 && playerMana >= 15 && waterTarget) {
+            if (lv < 10 || fireCooldown > 0) {
+                castSpell(c, waterTarget, 'water');
+                playerMana   -= 15;
+                waterCooldown = 55;
+            }
+        }
+
+        // Move spells + hit detection
+        for (let s of spells) {
+            s.x += s.dx;
+            s.y += s.dy;
+            s.life--;
+            if (s.life <= 0) continue;
+            for (let m of monsters) {
+                if (!m.alive) continue;
+                if (p.dist(s.x, s.y, m.x, m.y) < m.radius + 8) {
+                    m.hp -= s.dmg;
+                    const fc = s.type === 'fire' ? [255, 140, 40] : [80, 180, 255];
+                    spawnFloat(m.x, m.y - m.radius - 10, `-${s.dmg}`, fc);
+                    s.life = 0;
+                    if (m.hp <= 0) {
+                        m.alive = false; m.deathTimer = 40;
+                        const prevLv = rpgLevel();
+                        rpgFeeds += m.xpReward;
+                        const needDmg = Math.round(m.dmgToPlayer * (1 - playerDefTotal() / 100) * 60 / playerMaxHp());
+                        c.need = p.min(100, c.need + needDmg);
+                        spawnFloat(c.x, c.y - 30, `+${m.xpReward} XP`, [255, 210, 60]);
+                        spawnFloat(c.x, c.y - 52, `-${needDmg} HP`, [255, 100, 80]);
+                        if (rpgLevel() > prevLv) {
+                            spawnFloat(c.x, c.y - 76, '✦ LEVEL UP! ✦',     [255, 210, 60]);
+                            spawnFloat(c.x, c.y - 98, '+10HP +1ATK +1SPD', [180, 240, 180]);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        spells = spells.filter(s => s.life > 0);
+    }
+
+    function castSpell(c, target, type) {
+        const isFire = type === 'fire';
+        const speed  = isFire ? 5.5 : 3.5;
+        const life   = isFire ? Math.ceil(FIRE_RANGE  / speed)   // ~95 frames
+                              : Math.ceil(WATER_RANGE / speed);  // ~75 frames
+        const dmg    = isFire
+            ? Math.round(playerAtk() * 2.2 + p.random(8))
+            : Math.round(playerAtk() * 1.4 + p.random(4));
+        const dx = target.x - c.x, dy = target.y - c.y;
+        const len = Math.hypot(dx, dy) || 1;
+        spells.push({ x: c.x, y: c.y, dx: dx / len * speed, dy: dy / len * speed,
+                      type, dmg, life, maxLife: life });
+        // Wand bonus: extra projectile at ~14° offset
+        const hasWand = currentWeapons.some(i => i !== undefined && weaponNames[i] === 'wand');
+        if (hasWand) {
+            const angle = Math.atan2(dy, dx) + 0.24;
+            spells.push({ x: c.x, y: c.y,
+                          dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed,
+                          type, dmg: Math.round(dmg * 0.65), life, maxLife: life });
+        }
+    }
+
+    function drawSpells() {
+        for (let s of spells) {
+            const t   = s.life / s.maxLife;
+            const img = s.type === 'fire' ? slotImgs.fire : slotImgs.water;
+            const sz  = s.type === 'fire' ? 34 : 28;
+            p.push();
+            p.drawingContext.globalAlpha = Math.min(1, t * 2) * 0.9;
+            p.imageMode(p.CENTER);
+            if (img) {
+                p.image(img, s.x, s.y, sz, sz);
+            } else {
+                p.noStroke();
+                p.fill(s.type === 'fire' ? [255, 120, 40] : [80, 180, 255]);
+                p.circle(s.x, s.y, sz * 0.6);
+            }
+            p.pop();
+        }
     }
 
     function updateMonsters(c) {
@@ -448,13 +632,25 @@ new p5(function(p) {
             monsterSpawnTimer = 0;
         }
 
-        // Move alive monsters toward creature; tick death timers
+        // Move alive monsters; aggro triggers on entering center radius
+        const cx = p.width / 2, cy = p.height / 2;
         for (let m of monsters) {
             if (!m.alive) { m.deathTimer--; continue; }
-            let dx = c.x - m.x, dy = c.y - m.y;
-            let dist = Math.hypot(dx, dy) || 1;
-            m.x += (dx / dist) * m.speed;
-            m.y += (dy / dist) * m.speed;
+            const distToCenter = Math.hypot(m.x - cx, m.y - cy);
+            if (!m.aggroed && distToCenter <= AGGRO_RADIUS) m.aggroed = true;
+            if (m.aggroed) {
+                // chase creature at full speed
+                let dx = c.x - m.x, dy = c.y - m.y;
+                let d  = Math.hypot(dx, dy) || 1;
+                m.x += (dx / d) * m.speed;
+                m.y += (dy / d) * m.speed;
+            } else {
+                // drift toward screen center at half speed
+                let dx = cx - m.x, dy = cy - m.y;
+                let d  = Math.hypot(dx, dy) || 1;
+                m.x += (dx / d) * m.speed * 0.5;
+                m.y += (dy / d) * m.speed * 0.5;
+            }
         }
 
         // Creature attacks nearest monster within range
@@ -464,7 +660,8 @@ new p5(function(p) {
             if (nearest) {
                 let d = p.dist(c.x, c.y, nearest.x, nearest.y);
                 if (d <= ATTACK_RANGE + nearest.radius) {
-                    let dmg = 15 + Math.floor(p.random(15));
+                    let weapDmg = getWeaponDamage();
+                    let dmg     = playerAtk() + weapDmg + Math.floor(p.random(weapDmg * 0.5 + 1));
                     nearest.hp -= dmg;
                     spawnFloat(nearest.x, nearest.y - nearest.radius - 10,
                                `-${dmg}`, [255, 80, 80]);
@@ -475,11 +672,15 @@ new p5(function(p) {
                         nearest.deathTimer = 40;
                         let prevLv = rpgLevel();
                         rpgFeeds  += nearest.xpReward;
-                        c.need     = p.min(100, c.need + nearest.dmgToPlayer);
+                        // damage scaled by player max HP — more HP = less % damage per hit
+                        let needDmg = Math.round(nearest.dmgToPlayer * (1 - playerDefTotal() / 100) * 100 / playerMaxHp());
+                        c.need  = p.min(100, c.need + needDmg);
                         spawnFloat(c.x, c.y - 30, `+${nearest.xpReward} XP`,  [255, 210, 60]);
-                        spawnFloat(c.x, c.y - 52, `-${nearest.dmgToPlayer} HP`, [255, 100, 80]);
-                        if (rpgLevel() > prevLv)
-                            spawnFloat(c.x, c.y - 76, '✦ LEVEL UP! ✦', [255, 210, 60]);
+                        spawnFloat(c.x, c.y - 52, `-${needDmg} HP`, [255, 100, 80]);
+                        if (rpgLevel() > prevLv) {
+                            spawnFloat(c.x, c.y - 76, '✦ LEVEL UP! ✦',       [255, 210, 60]);
+                            spawnFloat(c.x, c.y - 98, '+10HP +1ATK +1SPD',   [180, 240, 180]);
+                        }
                     }
                 }
             }
@@ -512,16 +713,28 @@ new p5(function(p) {
                 p.circle(0, 0, size);
             }
 
-            // HP bar
+            // HP bar + tier label
             if (m.alive) {
                 let barW  = size * 0.9;
                 let barH  = 5;
                 let barYm = -m.radius * 1.55;
                 let hpRat = m.hp / m.maxHp;
+                const col = m.col || [220, 50, 50];
+
+                // tier label above bar
+                p.drawingContext.globalAlpha = 0.85;
                 p.noStroke();
-                p.fill(50, 20, 20, 200);
+                p.textAlign(p.CENTER, p.BOTTOM);
+                p.textSize(Math.max(8, m.radius * 0.22));
+                p.fill(col[0], col[1], col[2], 220);
+                p.text(m.label || '', 0, barYm - 2);
+
+                // bar background
+                p.noStroke();
+                p.fill(20, 10, 10, 200);
                 p.rect(-barW / 2, barYm, barW, barH, 2);
-                p.fill(220, 50, 50, 220);
+                // bar fill — color by tier
+                p.fill(col[0], col[1], col[2], 220);
                 p.rect(-barW / 2, barYm, barW * hpRat, barH, 2);
             }
 
@@ -529,10 +742,40 @@ new p5(function(p) {
         }
     }
 
+    function checkIdleBattle() {
+        if (autoBattleActive || BATTLE_MODE) return;
+        if (p.millis() - lastInteractionTime >= IDLE_TIMEOUT) {
+            autoBattleActive = true;
+            BATTLE_MODE      = true;
+            monsterSpawnTimer = MONSTER_SPAWN_INTERVAL - 60;
+            updateBattleBtn();
+        }
+    }
+
+    function onUserActivity() {
+        lastInteractionTime = p.millis();   // keeps the 30s idle timer alive
+    }
+
+    function cancelAutoBattle() {
+        if (!autoBattleActive) return;
+        autoBattleActive  = false;
+        BATTLE_MODE       = false;
+        monsters          = [];
+        spells            = [];
+        monsterSpawnTimer = 0;
+        attackTimer       = 0;
+        updateBattleBtn();
+        if (creature) {
+            rpgDialog = { text: 'You left me to fight alone?!', life: 260, maxLife: 260 };
+            rpgDialogTimer = 160;
+        }
+    }
+
     function toggleBattleMode() {
         BATTLE_MODE = !BATTLE_MODE;
         if (!BATTLE_MODE) {
             monsters          = [];
+            spells            = [];
             monsterSpawnTimer = 0;
             attackTimer       = 0;
         } else {
@@ -550,6 +793,8 @@ new p5(function(p) {
         cnv.parent('canvas-container');
         cnv.mousePressed(onCanvasClick);
 
+        rebuildBgLayer();
+
         creature = createCreature(p.width / 2, p.height / 2);
         loadState(creature);
 
@@ -557,14 +802,39 @@ new p5(function(p) {
 
         // Cache sidebar DOM refs once — no per-frame getElementById calls
         ui.hour    = document.getElementById('ui-hour');
+        ui.min     = document.getElementById('ui-min');
         ui.period  = document.getElementById('ui-period');
         ui.state   = document.getElementById('ui-state');
         ui.needVal = document.getElementById('ui-need-val');
-        ui.needBar = document.getElementById('ui-need-bar');
+        ui.needBar    = document.getElementById('ui-need-bar');
+        ui.hearts     = document.getElementById('rpg-hearts-row');
+        ui.lvEl       = document.getElementById('ui-rpg-lv');
+        ui.xpEl       = document.getElementById('ui-rpg-xp');
+        ui.xpFill     = document.getElementById('ui-rpg-xp-fill');
+        ui.hpEl       = document.getElementById('stat-hp');
+        ui.mpEl       = document.getElementById('stat-mp');
+        ui.atkEl      = document.getElementById('stat-atk');
+        ui.spdEl      = document.getElementById('stat-spd');
+        ui.defEl      = document.getElementById('stat-def');
+        ui.mpBonus    = document.getElementById('stat-mp-bonus');
+        ui.atkBonus   = document.getElementById('stat-atk-bonus');
+        ui.spdBonus   = document.getElementById('stat-spd-bonus');
+        ui.defBonus   = document.getElementById('stat-def-bonus');
+        ui.skillLockW = document.getElementById('skill-lock-water');
+        ui.skillLockF = document.getElementById('skill-lock-fire');
+        ui.skillCdW   = document.getElementById('skill-cd-water');
+        ui.skillCdF   = document.getElementById('skill-cd-fire');
+        ui.skillSlotW = document.getElementById('skill-slot-water');
+        ui.skillSlotF = document.getElementById('skill-slot-fire');
 
         // Track focus via events — no polling in the draw loop
         window.addEventListener('focus', () => { creature.isWatched = true; });
         window.addEventListener('blur',  () => { creature.isWatched = false; });
+
+        // Idle auto-battle tracking
+        lastInteractionTime = p.millis();
+        window.addEventListener('mousemove', onUserActivity);
+        window.addEventListener('keydown',   onUserActivity);
 
         initPaintLayer(sz.w, sz.h);
         initHudSlots();
@@ -572,6 +842,12 @@ new p5(function(p) {
 
         setInterval(() => { saveState(creature); creature.hour = new Date().getHours(); }, 30000);
         window.addEventListener('beforeunload', () => saveState(creature));
+
+        fetchWeather();
+        setInterval(fetchWeather, 30 * 60 * 1000);
+
+        fetchTime();
+        setInterval(updateClock, 1000);
     };
 
 
@@ -579,16 +855,85 @@ new p5(function(p) {
     //  DRAW LOOP
     // ============================================================
 
-    p.draw = function() {
-        p.background(...bgColour);
+    let currentWeatherCode = -1;  // -1 = not yet fetched
 
+    // time-of-day palette: c=[r,g,b], a=alpha (lower = more ghost/trail)
+    const TIME_PALETTE = [
+        { h:  0, c: [12,  14,  38],  a: 210 },  // midnight — deep navy
+        { h:  5, c: [28,  22,  58],  a: 215 },  // pre-dawn — soft indigo
+        { h:  6, c: [95,  72,  95],  a: 230 },  // dawn — dusty mauve
+        { h:  7, c: [175, 135, 120], a: 240 },  // sunrise — rose-peach
+        { h:  9, c: [195, 210, 215], a: 255 },  // morning — cool mist
+        { h: 12, c: [208, 228, 218], a: 255 },  // midday — pale sage
+        { h: 15, c: [215, 220, 205], a: 255 },  // afternoon — warm cream
+        { h: 17, c: [200, 170, 125], a: 250 },  // golden hour — muted amber
+        { h: 19, c: [150, 100, 100], a: 238 },  // sunset — dusty rose
+        { h: 20, c: [75,  58,  98],  a: 222 },  // dusk — soft violet
+        { h: 22, c: [22,  18,  52],  a: 210 },  // night — dark indigo
+        { h: 24, c: [12,  14,  38],  a: 210 },  // wrap to midnight
+    ];
+
+    // weather colour offset [dr, dg, db, da]
+    function weatherTint(code) {
+        if (code < 0)   return [0,   0,   0,   0  ];  // not fetched
+        if (code === 0) return [8,   4,  -6,   5  ];  // clear — warmer, brighter
+        if (code <= 3)  return [-8,  -6,   4,  -8  ];  // cloudy — grey
+        if (code <= 48) return [-12, -10,  8, -18  ];  // foggy — cool grey, faded
+        if (code <= 55) return [-18, -14,  12, -25 ];  // drizzle — dark cool
+        if (code <= 65) return [-30, -22,  18, -35 ];  // rain — dark blue-grey
+        if (code <= 75) return [15,  18,  25,  -10 ];  // snow — cold, bright
+        if (code <= 82) return [-35, -28,  14, -40 ];  // showers — heavy dark
+        return                 [-45, -35,  10, -50 ];  // storm — very dark
+    }
+
+    function timeBg(hour) {
+        let a = TIME_PALETTE[0], b = TIME_PALETTE[TIME_PALETTE.length - 1];
+        for (let i = 0; i < TIME_PALETTE.length - 1; i++) {
+            if (hour >= TIME_PALETTE[i].h && hour < TIME_PALETTE[i + 1].h) {
+                a = TIME_PALETTE[i]; b = TIME_PALETTE[i + 1]; break;
+            }
+        }
+        const t    = (hour - a.h) / (b.h - a.h);
+        const base = a.c.map((v, i) => v + (b.c[i] - v) * t);
+        const alph = a.a + (b.a - a.a) * t;
+        const tint = weatherTint(currentWeatherCode);
+        const clamp = v => Math.round(Math.max(0, Math.min(255, v)));
+        return [...base.map((v, i) => clamp(v + tint[i])), clamp(alph + tint[3])];
+    }
+
+    function rebuildBgLayer() {
+        if (!backgroundImg) return;
+        if (bgLayer) bgLayer.remove();
+        bgLayer = p.createGraphics(p.width, p.height);
+        bgLayer.image(backgroundImg, 0, 0, p.width, p.height);
+    }
+
+    p.draw = function() {
+        const hour = creature ? creature.hour + new Date().getMinutes() / 60 : 12;
+        const [tr, tg, tb, ta] = timeBg(hour);
+
+        // Background: pre-scaled buffer (same-size blit, no per-frame scaling)
+        if (bgLayer) {
+            p.image(bgLayer, 0, 0);
+        } else {
+            p.background(tr, tg, tb);
+        }
+        // Time-of-day colour overlay
+        const overlayAlpha = Math.round(p.map(ta, 210, 255, 160, 45));
+        p.noStroke();
+        p.fill(tr, tg, tb, overlayAlpha);
+        p.rect(0, 0, p.width, p.height);
+
+        checkIdleBattle();
         updateMic(creature);
         updateCreature(creature);
         if (paintLayerDirty) p.image(paintLayer, 0, 0);
         if (SHOW_TRAIL) { recordTrail(creature); drawTrail(); }
         if (miniMode && !BATTLE_MODE) drawPaintMark(creature);
         updateMonsters(creature);
+        updateSpells(creature);
         drawMonsters();
+        drawSpells();
         drawCreature(creature);
         drawWeapon(creature);
         drawNameplate(creature);
@@ -670,7 +1015,7 @@ new p5(function(p) {
         }
 
         // lower lerp = softer easing; battle mode uses fast lerp to track monsters
-        let lerpSpeed = BATTLE_MODE          ? 0.04
+        let lerpSpeed = BATTLE_MODE          ? playerSpdTotal()
                       : MOVE_MODE === 'random' ? 0.018
                       : MOVE_MODE === 'grid'   ? 0.012
                       : MOVE_MODE === 'arc'    ? 0.022
@@ -821,6 +1166,11 @@ new p5(function(p) {
     let rpgDialog      = null;
     let rpgDialogTimer = 0;
 
+    let playerMana    = 0;
+    let waterCooldown = 0;
+    let fireCooldown  = 0;
+    let spells        = [];
+
     const XP_PER_LEVEL = 20;
 
     const RPG_LINES = {
@@ -835,43 +1185,59 @@ new p5(function(p) {
 
     // ── Nameplate: Lv + Name + ♥ hearts ─────────────────────
     function drawNameplate(c) {
-        let lv      = rpgLevel();
-        let hp      = Math.round(100 - c.need);
-        let maxH    = 5;
-        let fullH   = Math.round((hp / 100) * maxH);
-        let nx      = c.x;
-        let ny      = c.y - CREATURE_SIZE * c.sizeScale * 0.60 - 14;
-        let lvTxt   = `Lv.${lv}`;
-        let nameTxt = RPG_NAME;
+        const lv     = rpgLevel();
+        const maxHp  = playerMaxHp();
+        const curHp  = Math.max(0, Math.round((1 - c.need / 100) * maxHp));
+        const maxMp  = playerMaxMana();
+        const curMp  = Math.floor(playerMana);
+        const nx     = c.x;
+        const ny     = c.y - CREATURE_SIZE * c.sizeScale * 0.60 - 14;
+        const barW   = 108;
+        const barH   = 8;
 
         p.push();
         p.noStroke();
 
-
-        // Lv (blue) + Name (gold) — larger, centered
-        p.textSize(18);
+        // Lv (blue) + Name (gold)
+        const lvTxt   = `Lv.${lv}`;
+        const nameTxt = RPG_NAME;
+        p.textSize(13);
         p.textAlign(p.LEFT, p.CENTER);
-        let lvW    = lvTxt.length * 10.8;   // ~10.8px per char at size 18, Courier New
-        let nameW  = nameTxt.length * 10.8;
-        let gapW   = 2 * 10.8;
-        let totalW = lvW + gapW + nameW;
-        let startX = nx - totalW / 2;
+        const lvW    = p.textWidth(lvTxt);
+        const gapW   = p.textWidth('  ');
+        const nameW  = p.textWidth(nameTxt);
+        const startX = nx - (lvW + gapW + nameW) / 2;
+        const textY  = ny - barH * 2 - 10 - 8;
         p.fill(150, 200, 255);
-        p.text(lvTxt, startX, ny - 18);
+        p.text(lvTxt, startX, textY);
         p.fill(255, 215, 65);
-        p.text(nameTxt, startX + lvW + gapW, ny - 18);
+        p.text(nameTxt, startX + lvW + gapW, textY);
 
-        // Hearts row — larger
-        let heartSize = 22;
-        let heartGap  = 4;
-        let heartSpan = maxH * heartSize + (maxH - 1) * heartGap;
-        let hx = nx - heartSpan / 2 + heartSize / 2;
-        p.textSize(heartSize);
+        const barX = nx - barW / 2;
+
+        // HP bar
+        const hpRat = Math.max(0, curHp / maxHp);
+        let   barY  = ny - barH * 2 - 6;
+        p.fill(30, 10, 10, 190);
+        p.rect(barX, barY, barW, barH, 3);
+        p.fill(200, 48, 68);
+        p.rect(barX, barY, barW * hpRat, barH, 3);
+        p.textSize(7);
         p.textAlign(p.CENTER, p.CENTER);
-        for (let i = 0; i < maxH; i++) {
-            p.fill(i < fullH ? [230, 48, 68] : [80, 55, 65]);
-            p.text(i < fullH ? '♥' : '♡', hx + i * (heartSize + heartGap), ny + 8);
-        }
+        p.fill(255, 220, 220);
+        p.text(`${curHp}/${maxHp}`, nx, barY + barH / 2);
+
+        // Mana bar
+        const mpRat = Math.max(0, curMp / maxMp);
+        barY = ny - barH - 2;
+        p.fill(10, 10, 35, 190);
+        p.rect(barX, barY, barW, barH, 3);
+        p.fill(55, 120, 255);
+        p.rect(barX, barY, barW * mpRat, barH, 3);
+        p.textSize(7);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.fill(180, 210, 255);
+        p.text(`${curMp}/${maxMp}`, nx, barY + barH / 2);
 
         p.pop();
     }
@@ -897,11 +1263,9 @@ new p5(function(p) {
         DECO_KEYS.forEach(k => {
             const on      = DECORATIONS[k];
             const btn     = document.querySelector(`.deco-btn[data-deco="${k}"]`);
-            const overlay = document.getElementById(`pdeco-${k}`);
             const iconEl  = document.getElementById(`deco-icon-${k}`);
             const lblEl   = document.getElementById(`deco-lbl-${k}`);
             if (btn)    btn.classList.toggle('active', on);
-            if (overlay) overlay.classList.toggle('active', on);
             if (iconEl)  iconEl.textContent = on ? DECO_DISPLAY[k].icon  : '—';
             if (lblEl)   lblEl.textContent  = on ? DECO_DISPLAY[k].label : 'Empty';
         });
@@ -1184,6 +1548,8 @@ new p5(function(p) {
     // ============================================================
 
     function onCanvasClick() {
+        onUserActivity();
+        cancelAutoBattle();
         if (!micActive) startMic();
 
         // HUD slot click detection
@@ -1277,41 +1643,52 @@ new p5(function(p) {
     // ============================================================
 
     function updateSidebar(c) {
-        ui.hour.textContent    = c.hour % 12 || 12;
-        ui.period.textContent  = c.hour < 12 ? 'am' : 'pm';
         ui.state.textContent   = c.state;
         ui.needVal.textContent = Math.floor(c.need);
 
-        // Hearts: HP = 100 - need; 5 hearts max
-        const heartsEl = document.getElementById('rpg-hearts-row');
-        if (heartsEl) {
-            let hp     = Math.round(100 - c.need);
-            let full   = Math.round((hp / 100) * 5);
-            heartsEl.textContent = '♥'.repeat(full) + '♡'.repeat(5 - full);
+        // Hearts
+        if (ui.hearts) {
+            const full = Math.round(((100 - c.need) / 100) * 5);
+            ui.hearts.textContent = '♥'.repeat(full) + '♡'.repeat(5 - full);
         }
 
-        // RPG stats
-        const lvEl   = document.getElementById('ui-rpg-lv');
-        const xpEl   = document.getElementById('ui-rpg-xp');
-        const xpFill = document.getElementById('ui-rpg-xp-fill');
-        if (lvEl)   lvEl.textContent  = rpgLevel();
-        if (xpEl)   xpEl.textContent  = `${rpgXP()}/${XP_PER_LEVEL}`;
-        if (xpFill) xpFill.style.width = (rpgXP() / XP_PER_LEVEL * 100) + '%';
+        // RPG level / XP
+        if (ui.lvEl)   ui.lvEl.textContent   = rpgLevel();
+        if (ui.xpEl)   ui.xpEl.textContent   = `${rpgXP()}/${XP_PER_LEVEL}`;
+        if (ui.xpFill) ui.xpFill.style.width = (rpgXP() / XP_PER_LEVEL * 100) + '%';
 
         ui.needBar.style.width = c.need + '%';
         ui.needBar.style.backgroundColor =
             c.need < 30 ? '#788c5d' :
             c.need < 70 ? '#c9973a' : '#c0522a';
 
+        // Character stats panel — textContent only, no innerHTML in hot path
+        const maxHp = playerMaxHp();
+        const curHp = Math.max(0, Math.round((1 - c.need / 100) * maxHp));
+        if (ui.hpEl)  ui.hpEl.textContent  = `${curHp}/${maxHp}`;
+        if (ui.mpEl)  ui.mpEl.textContent  = `${Math.floor(playerMana)}/${playerMaxMana()}`;
+        if (ui.atkEl) ui.atkEl.textContent = playerAtk();
+        if (ui.spdEl) ui.spdEl.textContent = (playerSpdTotal() * 100).toFixed(1);
+        if (ui.defEl) ui.defEl.textContent = `${playerDef().toFixed(1)}%`;
+
+        // Skill icons: lock overlay + cooldown (scaleY, no reflow) + ready glow
+        const skillLv = rpgLevel();
+        if (ui.skillLockW) ui.skillLockW.style.display = skillLv >= 5  ? 'none' : 'flex';
+        if (ui.skillLockF) ui.skillLockF.style.display = skillLv >= 10 ? 'none' : 'flex';
+        if (ui.skillCdW)   ui.skillCdW.style.transform = `scaleY(${waterCooldown > 0 ? (waterCooldown / 55).toFixed(2) : 0})`;
+        if (ui.skillCdF)   ui.skillCdF.style.transform = `scaleY(${fireCooldown  > 0 ? (fireCooldown  / 90).toFixed(2) : 0})`;
+        if (ui.skillSlotW) ui.skillSlotW.classList.toggle('ready', skillLv >= 5  && waterCooldown === 0 && playerMana >= 15 && BATTLE_MODE);
+        if (ui.skillSlotF) ui.skillSlotF.classList.toggle('ready', skillLv >= 10 && fireCooldown  === 0 && playerMana >= 25 && BATTLE_MODE);
+
         // Portrait eyes: pupils track mouse relative to portrait center
         const eyeL = document.getElementById('portrait-eye-l');
         const eyeR = document.getElementById('portrait-eye-r');
         if (eyeL && eyeR) {
             const rect = eyeL.closest('.char-portrait').getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
+            const cx = rect.left + rect.width  / 2;
             const cy = rect.top  + rect.height / 2;
-            const dx = p.mouseX - (rect.left + rect.width  / 2);
-            const dy = p.mouseY - (rect.top  + rect.height / 2);
+            const dx = p.mouseX - cx;
+            const dy = p.mouseY - cy;
             const maxShift = 3;
             const dist = Math.sqrt(dx*dx + dy*dy) || 1;
             const tx = (dx / dist) * Math.min(dist * 0.15, maxShift);
@@ -1329,8 +1706,90 @@ new p5(function(p) {
 
 
     // ============================================================
-    //  WINDOW RESIZE
+    //  TIME API
     // ============================================================
+
+    let _timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    function fetchTime() {
+        fetch('https://worldtimeapi.org/api/ip')
+            .then(r => r.json())
+            .then(data => { _timezone = data.timezone; updateClock(); })
+            .catch(() => {});
+    }
+
+    function updateClock() {
+        const now   = new Date();
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: _timezone,
+            hour12: true,
+            hour:   'numeric',
+            minute: '2-digit',
+        }).formatToParts(now);
+        const hour   = parts.find(p => p.type === 'hour')?.value   || '--';
+        const minute = parts.find(p => p.type === 'minute')?.value || '--';
+        const period = (parts.find(p => p.type === 'dayperiod')?.value || '').toLowerCase();
+
+        if (ui.hour)   ui.hour.textContent   = hour;
+        if (ui.min)    ui.min.textContent    = minute;
+        if (ui.period) ui.period.textContent = period;
+        if (creature)  creature.hour = now.getHours();
+    }
+
+    // ============================================================
+    //  WEATHER
+    // ============================================================
+
+    function wmoToInfo(code) {
+        if (code === 0)              return { icon: '☀️',  desc: 'Clear' };
+        if (code <= 3)               return { icon: '🌤️', desc: 'Cloudy' };
+        if (code <= 48)              return { icon: '🌫️', desc: 'Foggy' };
+        if (code <= 55)              return { icon: '🌦️', desc: 'Drizzle' };
+        if (code <= 65)              return { icon: '🌧️', desc: 'Rain' };
+        if (code <= 75)              return { icon: '❄️',  desc: 'Snow' };
+        if (code <= 82)              return { icon: '🌧️', desc: 'Showers' };
+        return                              { icon: '⛈️', desc: 'Storm' };
+    }
+
+    function fetchWeather() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude.toFixed(4);
+            const lon = pos.coords.longitude.toFixed(4);
+
+            const weatherUrl =
+                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+                `&current=temperature_2m,weather_code`;
+            const geoUrl =
+                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`;
+
+            Promise.all([fetch(weatherUrl).then(r => r.json()),
+                         fetch(geoUrl).then(r => r.json())])
+                .then(([weather, geo]) => {
+                    const temp = Math.round(weather.current.temperature_2m);
+                    const code = weather.current.weather_code;
+                    currentWeatherCode = code;
+                    const info = wmoToInfo(code);
+                    const city = geo.address?.city
+                              || geo.address?.town
+                              || geo.address?.village
+                              || geo.address?.county
+                              || '';
+
+                    const el   = document.getElementById('rpg-weather');
+                    const iEl  = document.getElementById('weather-icon');
+                    const tEl  = document.getElementById('weather-temp');
+                    const dEl  = document.getElementById('weather-desc');
+                    const cEl  = document.getElementById('weather-city');
+                    if (el)  el.style.display  = 'flex';
+                    if (iEl) iEl.textContent   = info.icon;
+                    if (tEl) tEl.textContent   = temp + '°C';
+                    if (dEl) dEl.textContent   = info.desc;
+                    if (cEl) cEl.textContent   = city;
+                })
+                .catch(() => {});
+        }, () => {});
+    }
 
     p.windowResized = function() {
         let sz = canvasSize();
@@ -1339,6 +1798,7 @@ new p5(function(p) {
             creature.originX = p.width / 2;
             creature.originY = p.height / 2;
         }
+        rebuildBgLayer();
         if (paintLayer) initPaintLayer(sz.w, sz.h);
     };
 
@@ -1366,7 +1826,11 @@ new p5(function(p) {
     window._setPaintColor  = v => { LINE_COLOR = v; };
     window._setLineWidth   = v => { LINE_WIDTH = v; };
     window._resetNeed   = () => { if (creature) creature.need = 0; };
-    window._maxNeed     = () => { if (creature) creature.need = 100; };
+    window._resetLevel  = () => {
+        rpgFeeds  = 0;
+        playerMana = 0;
+        spawnFloat(creature.x, creature.y - 30, '↺ Level Reset', [180, 140, 255]);
+    };
     window._setDecay    = v => { DECAY_RATE = v; };
     window._setFeed     = v => { CLICK_FEED = v; };
     window._toggleTrail = () => {
@@ -1412,6 +1876,21 @@ new p5(function(p) {
                 labelEl.textContent = 'Empty';
                 if (slotEl) slotEl.classList.remove('active');
             }
+        }
+        // Update weapon bonus spans — only runs on weapon change, not every frame
+        for (const stat of ['mp', 'atk', 'spd', 'def']) {
+            const el = ui[stat + 'Bonus'];
+            if (!el) continue;
+            let text = '', color = '';
+            for (const idx of currentWeapons) {
+                if (idx === undefined) continue;
+                const b = WEAPON_STAT_BONUS[weaponNames[idx]];
+                if (!b || b.stat !== stat) continue;
+                text  += b.display + ' ';
+                color  = `rgb(${b.col[0]},${b.col[1]},${b.col[2]})`;
+            }
+            el.textContent = text.trim();
+            el.style.color = color;
         }
     }
 

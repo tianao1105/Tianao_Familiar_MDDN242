@@ -19,6 +19,14 @@
     <!-- ════════════════════ RPG PANEL ════════════════════ -->
     <div class="sidebar rpg-panel">
 
+        <!-- Crown toggle — always visible -->
+        <button class="crown-toggle" id="crown-toggle" onclick="toggleSidebar()" title="Toggle panel">
+            <img src="image/crown.png" alt="☰">
+        </button>
+
+        <!-- Collapsible content -->
+        <div id="sidebar-main">
+
         <!-- ── Top bar: level · name · clock ── -->
         <div class="rpg-topbar">
             <div class="rpg-lv-tag">LV<span id="ui-rpg-lv">1</span></div>
@@ -26,8 +34,16 @@
                    placeholder="FAMILIAR"
                    oninput="window._setRpgName && window._setRpgName(this.value)">
             <div class="rpg-clock">
-                <span id="ui-hour">--</span><span class="rpg-ampm" id="ui-period">am</span>
+                <span id="ui-hour">--</span>:<span id="ui-min">--</span><span class="rpg-ampm" id="ui-period">am</span>
             </div>
+        </div>
+
+        <!-- ── Weather strip ── -->
+        <div class="rpg-weather" id="rpg-weather" style="display:none">
+            <span id="weather-icon">☀️</span>
+            <span id="weather-temp">--°</span>
+            <span id="weather-desc" class="weather-desc">--</span>
+            <span id="weather-city" class="weather-city"></span>
         </div>
 
         <!-- ── HP hearts + XP bar ── -->
@@ -78,14 +94,6 @@
                 <div class="char-portrait">
                     <img src="image/human.png" class="char-img" alt=""
                          onerror="this.style.display='none'">
-                    <!-- decoration overlays -->
-                    <div class="pdeco" id="pdeco-hat">🎩</div>
-                    <div class="pdeco" id="pdeco-crown">👑</div>
-                    <div class="pdeco" id="pdeco-bowtie">🎀</div>
-                    <div class="pdeco pdeco-blush" id="pdeco-blush">
-                        <span class="blush-l"></span><span class="blush-r"></span>
-                    </div>
-                    <div class="pdeco" id="pdeco-sparkles">✨</div>
                     <!-- eyes -->
                     <div class="portrait-eye portrait-eye-l" id="portrait-eye-l">
                         <div class="portrait-pupil" id="portrait-pupil-l"></div>
@@ -101,6 +109,42 @@
                 </div>
                 <div class="char-need-label">
                     need <span id="ui-need-val">50</span>
+                </div>
+                <div class="char-stats">
+                    <div class="stat-row">
+                        <span class="stat-lbl">HP</span>
+                        <span class="stat-val" id="stat-hp">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-lbl">MP</span>
+                        <span class="stat-val" id="stat-mp">—</span><span class="stat-bonus" id="stat-mp-bonus"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-lbl">ATK</span>
+                        <span class="stat-val" id="stat-atk">—</span><span class="stat-bonus" id="stat-atk-bonus"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-lbl">SPD</span>
+                        <span class="stat-val" id="stat-spd">—</span><span class="stat-bonus" id="stat-spd-bonus"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-lbl">DEF</span>
+                        <span class="stat-val" id="stat-def">—</span><span class="stat-bonus" id="stat-def-bonus"></span>
+                    </div>
+                </div>
+
+                <!-- Skill icons -->
+                <div class="char-skills">
+                    <div class="char-skill-slot" id="skill-slot-water" title="Water Magic (Lv5)">
+                        <img src="image/water_magic.png" class="skill-img" alt="">
+                        <div class="skill-lock-overlay" id="skill-lock-water">Lv5</div>
+                        <div class="skill-cd-overlay" id="skill-cd-water"></div>
+                    </div>
+                    <div class="char-skill-slot" id="skill-slot-fire" title="Fire Magic (Lv10)">
+                        <img src="image/fair_magic.png" class="skill-img" alt="">
+                        <div class="skill-lock-overlay" id="skill-lock-fire">Lv10</div>
+                        <div class="skill-cd-overlay" id="skill-cd-fire"></div>
+                    </div>
                 </div>
             </div>
 
@@ -134,23 +178,26 @@
             </div>
         </div>
 
-        <!-- ── Action row ── -->
-        <div class="rpg-actions">
-            <button class="rpg-btn" onclick="window._feedCreature && window._feedCreature()">
-                🍶 Feed
-            </button>
-            <button class="rpg-btn secondary" onclick="window._clearPaint && window._clearPaint()">
-                🧹 Clear
-            </button>
-            <button class="rpg-btn secondary" onclick="window._resetNeed && window._resetNeed()">
-                ❤ Heal
-            </button>
-        </div>
-
-        <!-- ── Behaviour sliders (collapsed section) ── -->
+        <!-- ── Settings (collapsible, includes actions + sliders) ── -->
         <details class="rpg-details">
             <summary class="rpg-details-title">⚙ Settings</summary>
             <div class="rpg-settings-body">
+                <div class="rpg-actions">
+                    <button class="rpg-btn" onclick="window._feedCreature && window._feedCreature()">
+                        🍶 Feed
+                    </button>
+                    <button class="rpg-btn secondary" onclick="window._clearPaint && window._clearPaint()">
+                        🧹 Clear
+                    </button>
+                    <button class="rpg-btn secondary" onclick="window._resetNeed && window._resetNeed()">
+                        ❤ Heal
+                    </button>
+                </div>
+                <div class="rpg-setting-row">
+                    <label>Reset LV</label>
+                    <button class="rpg-btn secondary" style="flex:1;padding:4px 8px;font-size:10px"
+                        onclick="window._resetLevel && window._resetLevel()">⚠ Reset Level</button>
+                </div>
                 <div class="rpg-setting-row">
                     <label>Need decay</label>
                     <input type="range" min="0.001" max="0.045" step="0.001" value="0.003"
@@ -161,31 +208,23 @@
                     <input type="range" min="5" max="50" step="5" value="20"
                         oninput="window._setFeed && window._setFeed(+this.value)">
                 </div>
-                <div class="rpg-setting-row">
-                    <label>Paint color</label>
-                    <div style="display:flex;gap:4px;flex:1">
-                        <input type="color" value="#e05c5c" style="flex:1;height:24px;border:none;border-radius:4px;cursor:pointer"
-                            oninput="window._setPaintColor && window._setPaintColor(this.value)">
-                        <button class="rpg-btn secondary" style="flex:1;padding:2px 4px;font-size:10px"
-                            onclick="window._setPaintColor && window._setPaintColor('rainbow')">🌈</button>
-                    </div>
-                </div>
             </div>
         </details>
 
+        </div><!-- end #sidebar-main -->
     </div><!-- end .sidebar -->
 
 </div><!-- end .container -->
 
-<button id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle panel">☰</button>
-
 <script src="sketch.js"></script>
 <script>
     function toggleSidebar() {
+        const main    = document.getElementById('sidebar-main');
+        const btn     = document.getElementById('crown-toggle');
         const sidebar = document.querySelector('.sidebar');
-        const btn     = document.getElementById('sidebar-toggle');
-        const hidden  = sidebar.classList.toggle('sidebar-hidden');
-        btn.textContent = hidden ? '☰' : '✕';
+        const hidden  = main.classList.toggle('sidebar-main-hidden');
+        btn.classList.toggle('collapsed', hidden);
+        sidebar.classList.toggle('sidebar-collapsed', hidden);
     }
 </script>
 </body>
