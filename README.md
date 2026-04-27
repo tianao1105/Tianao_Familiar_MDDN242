@@ -29,8 +29,8 @@ The target audience is gamers.
 
 ### Artists, designers, sites
 
-- Name — what about their work resonated
+- Refers to the equipment bar in World of Warcraft
 
 ### Movements or aesthetics
 
-- e.g. brutalism, wabi-sabi, Y2K — what drew you to it
+- pixel art — the lo-fi aesthetic of early games, where limited resolution forces every detail to be intentional
