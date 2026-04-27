@@ -34,6 +34,36 @@ new p5(function(p) {
 
 
     // ============================================================
+    //  COLLECTIBLES
+    // ============================================================
+
+    const COLLECTIBLES = [
+        { id: 'sword',       name: 'Iron Sword',    file: 'image/sword.png',       rarity: 'common',   desc: 'A trusty blade, worn from use.' },
+        { id: 'shield',      name: 'Iron Shield',   file: 'image/shield.png',      rarity: 'common',   desc: 'Dented but dependable.' },
+        { id: 'dagger',      name: 'Shadow Dagger', file: 'image/dagger.png',      rarity: 'common',   desc: 'Quick strikes, clean cuts.' },
+        { id: 'hammer',      name: 'War Hammer',    file: 'image/hammer.png',      rarity: 'common',   desc: 'Crushes bone and ambition alike.' },
+        { id: 'potion',      name: 'HP Potion',     file: 'image/HP_Potion.png',   rarity: 'uncommon', desc: 'Tastes like copper and hope.' },
+        { id: 'orb',         name: 'Magic Orb',     file: 'image/Orb.png',         rarity: 'uncommon', desc: 'Hums with contained mana.' },
+        { id: 'wand',        name: 'Arcane Wand',   file: 'image/wand.png',        rarity: 'uncommon', desc: 'Channels wild energy.' },
+        { id: 'crown',       name: 'Crown',         file: 'image/crown.png',       rarity: 'uncommon', desc: 'Fit for one who has earned it.' },
+        { id: 'water_magic', name: 'Water Tome',    file: 'image/water_magic.png', rarity: 'rare',     desc: 'Ancient hydro arts, distilled.' },
+        { id: 'fire_magic',  name: 'Fire Tome',     file: 'image/fair_magic.png',  rarity: 'rare',     desc: 'Pyro arts — handle with care.' },
+        { id: 'trophy_n',    name: 'Normal Trophy', file: 'image/monster_1.png',   rarity: 'common',   desc: 'Proof of a first hunt.' },
+        { id: 'trophy_e',    name: 'Elite Trophy',  file: 'image/monster_2.png',   rarity: 'rare',     desc: 'Elite slain — no small feat.' },
+        { id: 'trophy_b',    name: 'Boss Trophy',   file: 'image/monster_3.png',   rarity: 'epic',     desc: 'A boss fell before you.' },
+        { id: 'portrait',    name: 'Self Portrait', file: 'image/human.png',       rarity: 'rare',     desc: 'The familiar sees itself clearly.' },
+        { id: 'landscape',   name: 'Homeland Map',  file: 'image/background.png',  rarity: 'epic',     desc: 'A memento of where it all began.' },
+    ];
+
+    // Drop weight per rarity (higher = more likely)
+    const RARITY_WEIGHT = { common: 40, uncommon: 20, rare: 8, epic: 2 };
+    // Tier multiplier on total drop chance (1=normal, 2=elite, 3=boss)
+    const TIER_DROP_CHANCE = { 1: 0.15, 2: 0.28, 3: 0.55 };
+
+    let collectedIds  = new Set();   // IDs of collected items
+    let collectImgs   = {};          // keyed by COLLECTIBLES[i].id
+
+    // ============================================================
     //  STATE MACHINE
     //
     //  Each state is a row of visual/behaviour targets.
@@ -45,11 +75,13 @@ new p5(function(p) {
         happy:      { bounceAmt: 0.04, shakeAmt: 0.0, alphaTarget: 255 },
         neutral:    { bounceAmt: 0.02, shakeAmt: 0.0, alphaTarget: 180 },
         distressed: { bounceAmt: 0.01, shakeAmt: 1.5, alphaTarget: 127 },
+        ko:         { bounceAmt: 0.00, shakeAmt: 0.0, alphaTarget:  80 },
         excited:    { bounceAmt: 0.10, shakeAmt: 0.0, alphaTarget: 255 },
     };
 
     // First match wins — checked top to bottom every frame.
     function getState(c) {
+        if (KO_MODE)           return 'ko';
         if (c.exciteTimer > 0) return 'excited';
         if (c.need <= 30)      return 'happy';
         if (c.need <= 70)      return 'neutral';
@@ -87,9 +119,23 @@ new p5(function(p) {
     }
 
     let creature;
-    let micAnalyser = null;
-    let micActive   = false;
-    let micData     = null;   // reused buffer — allocated once when mic starts
+    let micAnalyser       = null;
+    let micActive         = false;
+    let micData           = null;   // reused buffer — allocated once when mic starts
+    let micDialogCooldown = 0;      // frames before next mic-triggered dialogue
+
+    const MIC_LINES = [
+        'Hm? Did you say something?',
+        'I can hear you!',
+        'Are you talking to me?',
+        'I hear someone...',
+        'Hello? Say that again?',
+        'Was that you?',
+        'I\'m listening...',
+        'Oh! You spoke!',
+        'You called for me?',
+        'Hmm... I hear you.',
+    ];
 
     // ============================================================
     //  TRAIL
@@ -326,6 +372,9 @@ new p5(function(p) {
         p.loadImage('image/monster_3.png', img => { monsterImgs[3] = img; }, () => {});
         p.loadImage('image/human.png',       img => { humanImg     = img; }, () => {});
         p.loadImage('image/background.png', img => { backgroundImg = img; }, () => {});
+        COLLECTIBLES.forEach(c => {
+            p.loadImage(c.file, img => { collectImgs[c.id] = img; }, () => {});
+        });
     };
 
     function randomWeapon() {
@@ -378,9 +427,11 @@ new p5(function(p) {
     // ============================================================
 
     let BATTLE_MODE           = false;
+    let KO_MODE               = false;   // true when need hit 100 — frozen until fed
     let monsters              = [];
     let monsterSpawnTimer     = 0;
     let attackTimer           = 0;
+    let battleSpeedMult       = 1.0;     // scales attack rate + monster speed by mood
 
     const IDLE_TIMEOUT        = 30000;  // ms before auto-battle
     let   lastInteractionTime = 0;      // set in setup
@@ -513,6 +564,36 @@ new p5(function(p) {
         return nearest;
     }
 
+    function tryDropCollectible(monster, cx, cy) {
+        const chance = TIER_DROP_CHANCE[monster.tier] || 0.15;
+        if (p.random() > chance) return;
+
+        // Weighted pool — exclude nothing, but uncollected items weigh heavier
+        let pool = [];
+        for (const col of COLLECTIBLES) {
+            const w = RARITY_WEIGHT[col.rarity] || 10;
+            // Already collected: still droppable but weight is quartered (duplicates are rare)
+            pool.push({ col, weight: collectedIds.has(col.id) ? Math.ceil(w / 4) : w });
+        }
+
+        const total = pool.reduce((s, e) => s + e.weight, 0);
+        let roll = p.random(total);
+        let chosen = pool[pool.length - 1].col;
+        for (const entry of pool) {
+            roll -= entry.weight;
+            if (roll <= 0) { chosen = entry.col; break; }
+        }
+
+        const isNew = !collectedIds.has(chosen.id);
+        collectedIds.add(chosen.id);
+        saveState(creature);
+
+        const col = isNew ? [255, 220, 80] : [160, 140, 200];
+        spawnFloat(cx, cy - 70,
+            isNew ? `★ ${chosen.name}!` : `${chosen.name} (dupe)`, col);
+        if (isNew) updateCollectPanel();
+    }
+
     function updateSpells(c) {
         // Mana regeneration — always active, Orb boosts rate
         let manaRegen = 0.12;
@@ -523,8 +604,8 @@ new p5(function(p) {
 
         if (!BATTLE_MODE) return;
 
-        waterCooldown = Math.max(0, waterCooldown - 1);
-        fireCooldown  = Math.max(0, fireCooldown  - 1);
+        waterCooldown = Math.max(0, waterCooldown - battleSpeedMult);
+        fireCooldown  = Math.max(0, fireCooldown  - battleSpeedMult);
 
         const lv = rpgLevel();
 
@@ -575,6 +656,7 @@ new p5(function(p) {
                             spawnFloat(c.x, c.y - 76, '✦ LEVEL UP! ✦',     [255, 210, 60]);
                             spawnFloat(c.x, c.y - 98, '+10HP +1ATK +1SPD', [180, 240, 180]);
                         }
+                        tryDropCollectible(m, m.x, m.y);
                     }
                     break;
                 }
@@ -642,22 +724,22 @@ new p5(function(p) {
             const distToCenter = Math.hypot(m.x - cx, m.y - cy);
             if (!m.aggroed && distToCenter <= AGGRO_RADIUS) m.aggroed = true;
             if (m.aggroed) {
-                // chase creature at full speed
+                // chase creature at full speed — scaled by mood
                 let dx = c.x - m.x, dy = c.y - m.y;
                 let d  = Math.hypot(dx, dy) || 1;
-                m.x += (dx / d) * m.speed;
-                m.y += (dy / d) * m.speed;
+                m.x += (dx / d) * m.speed * battleSpeedMult;
+                m.y += (dy / d) * m.speed * battleSpeedMult;
             } else {
                 // drift toward screen center at half speed
                 let dx = cx - m.x, dy = cy - m.y;
                 let d  = Math.hypot(dx, dy) || 1;
-                m.x += (dx / d) * m.speed * 0.5;
-                m.y += (dy / d) * m.speed * 0.5;
+                m.x += (dx / d) * m.speed * 0.5 * battleSpeedMult;
+                m.y += (dy / d) * m.speed * 0.5 * battleSpeedMult;
             }
         }
 
-        // Creature attacks nearest monster within range
-        attackTimer = Math.max(0, attackTimer - 1);
+        // Creature attacks nearest monster — attack rate scales with mood
+        attackTimer = Math.max(0, attackTimer - battleSpeedMult);
         if (attackTimer === 0) {
             let nearest = getBattleTarget(c);
             if (nearest) {
@@ -684,6 +766,7 @@ new p5(function(p) {
                             spawnFloat(c.x, c.y - 76, '✦ LEVEL UP! ✦',       [255, 210, 60]);
                             spawnFloat(c.x, c.y - 98, '+10HP +1ATK +1SPD',   [180, 240, 180]);
                         }
+                        tryDropCollectible(nearest, nearest.x, nearest.y);
                     }
                 }
             }
@@ -746,7 +829,7 @@ new p5(function(p) {
     }
 
     function checkIdleBattle() {
-        if (autoBattleActive || BATTLE_MODE) return;
+        if (autoBattleActive || BATTLE_MODE || KO_MODE) return;
         if (p.millis() - lastInteractionTime >= IDLE_TIMEOUT) {
             autoBattleActive = true;
             BATTLE_MODE      = true;
@@ -775,6 +858,7 @@ new p5(function(p) {
     }
 
     function toggleBattleMode() {
+        if (KO_MODE) return;   // can't enter battle while KO'd
         BATTLE_MODE = !BATTLE_MODE;
         if (!BATTLE_MODE) {
             monsters          = [];
@@ -800,6 +884,7 @@ new p5(function(p) {
 
         creature = createCreature(p.width / 2, p.height / 2);
         loadState(creature);
+        updateCollectPanel();
 
         if (!SHOW_UI) document.querySelector('.sidebar').style.display = 'none';
 
@@ -938,6 +1023,7 @@ new p5(function(p) {
         drawMonsters();
         drawSpells();
         drawCreature(creature);
+        if (KO_MODE) drawKOOverlay();
         drawWeapon(creature);
         drawNameplate(creature);
         tryRpgDialog(creature);
@@ -954,9 +1040,44 @@ new p5(function(p) {
     // ============================================================
 
     function updateCreature(c) {
+        // KO: frozen until fed — no need decay, exit battle
+        if (KO_MODE) {
+            c.need       = 100;
+            c.sizeTarget = 1.0;   // grow back to full size while fainted
+            miniMode     = false;
+            c.state      = getState(c);
+            let s        = STATES[c.state];
+            c.bounceAmt  = p.lerp(c.bounceAmt, 0, 0.08);
+            c.bodyAlpha  = p.lerp(c.bodyAlpha, s.alphaTarget, 0.05);
+            c.sizeScale  = p.lerp(c.sizeScale, c.sizeTarget, 0.1);
+            c.breathe   += 0.018;
+            c.bob       += 0.012;
+            return;
+        }
+
         // Need rises over time
         let rate = c.isWatched ? DECAY_RATE : AWAY_RATE;
         c.need = p.constrain(c.need + rate, 0, 100);
+
+        // KO trigger: need hit 100
+        if (c.need >= 100) {
+            KO_MODE = true;
+            if (BATTLE_MODE) {
+                BATTLE_MODE       = false;
+                autoBattleActive  = false;
+                monsters          = [];
+                spells            = [];
+                monsterSpawnTimer = 0;
+                attackTimer       = 0;
+                updateBattleBtn();
+            }
+            rpgDialog      = { text: '...KO\'d... Click to revive me...', life: 999, maxLife: 999 };
+            rpgDialogTimer = 999;
+            return;
+        }
+
+        // Battle speed multiplier based on mood — happy is faster, distressed is sluggish
+        battleSpeedMult = c.need <= 30 ? 1.25 : c.need <= 70 ? 1.0 : 0.7;
 
         // State machine
         c.state = getState(c);
@@ -1040,6 +1161,25 @@ new p5(function(p) {
     // ============================================================
     //  DRAWING
     // ============================================================
+
+    function drawKOOverlay() {
+        // Dark vignette + KO text
+        p.push();
+        p.noStroke();
+        p.fill(0, 0, 0, 120);
+        p.rect(0, 0, p.width, p.height);
+
+        let pulse = 0.85 + 0.15 * p.sin(p.frameCount * 0.06);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(48 * pulse);
+        p.fill(255, 40, 40, 200);
+        p.text('KO', p.width / 2, p.height / 2 - 30);
+
+        p.textSize(13);
+        p.fill(220, 180, 180, 180);
+        p.text('Click anywhere to revive', p.width / 2, p.height / 2 + 26);
+        p.pop();
+    }
 
     function drawCreature(c) {
         p.push();
@@ -1187,7 +1327,7 @@ new p5(function(p) {
         happy:      ['HP restored!', 'Power surges within~', 'Feeling blessed...', 'Full strength!'],
         neutral:    ['HP fading...', 'I hunger...', 'Awaiting orders.', 'Need sustenance.'],
         distressed: ['CRITICAL HP!', 'Must endure...', 'I need healing!', '...barely standing.'],
-        excited:    ['BATTLE STANCE!', 'Enemy spotted!', 'BERSERK MODE!', 'Adrenaline surge!'],
+        excited:    ['I hear you!', 'Hm? Who\'s there?', 'Are you talking to me?', 'I\'m listening...'],
     };
 
     function rpgLevel() { return Math.floor(rpgFeeds / XP_PER_LEVEL) + 1; }
@@ -1304,6 +1444,15 @@ new p5(function(p) {
     }
 
     function feedCreature() {
+        if (KO_MODE) {
+            // Revive from KO — restore to mid-HP and clear KO state
+            KO_MODE        = false;
+            creature.need  = 65;
+            rpgDialog      = { text: "I'm back! Don't leave me again!", life: 260, maxLife: 260 };
+            rpgDialogTimer = 180;
+            spawnFloat(creature.x, creature.y, 'REVIVED!', [80, 215, 95]);
+            return;
+        }
         creature.need = p.max(0, creature.need - CLICK_FEED);
         spawnFloat(creature.x, creature.y, `+${CLICK_FEED} HP`, [80, 215, 95]);
     }
@@ -1574,6 +1723,9 @@ new p5(function(p) {
             return;
         }
 
+        // While KO'd, any canvas click revives
+        if (KO_MODE) { feedCreature(); return; }
+
         // Creature click
         let d    = p.dist(p.mouseX, p.mouseY, creature.x, creature.y);
         let hitR = (CREATURE_SIZE / 2) * creature.sizeScale;
@@ -1624,6 +1776,7 @@ new p5(function(p) {
             localStorage.setItem('creature_v2', JSON.stringify({
                 need: c.need, lastVisit: Date.now(), totalVisits: c.totalVisits,
                 rpgFeeds, rpgName: RPG_NAME,
+                collected: [...collectedIds],
             }));
         } catch(e) {}
     }
@@ -1638,6 +1791,9 @@ new p5(function(p) {
             c.totalVisits = (data.totalVisits || 0) + 1;
             rpgFeeds      = data.rpgFeeds  || 0;
             if (data.rpgName) RPG_NAME = data.rpgName;
+            if (Array.isArray(data.collected)) {
+                collectedIds = new Set(data.collected);
+            }
             if (c.lastVisit) {
                 let hours = Math.min((Date.now() - c.lastVisit) / 3600000, AFK_MAX_HOURS);
                 c.need = Math.min(c.need + hours * AFK_PER_HOUR, 100);
@@ -1653,13 +1809,23 @@ new p5(function(p) {
     // ============================================================
 
     function updateSidebar(c) {
-        ui.state.textContent   = c.state;
+        const stateLabel = KO_MODE ? 'KO' : c.state;
+        ui.state.textContent = stateLabel;
+        ui.state.style.color = KO_MODE          ? '#ff4040'
+                             : c.state === 'happy'      ? '#7cc870'
+                             : c.state === 'neutral'    ? '#c0b060'
+                             : c.state === 'distressed' ? '#ff6040'
+                             : '#a0c0ff';
         ui.needVal.textContent = Math.floor(c.need);
 
         // Hearts
         if (ui.hearts) {
-            const full = Math.round(((100 - c.need) / 100) * 5);
-            ui.hearts.textContent = '♥'.repeat(full) + '♡'.repeat(5 - full);
+            if (KO_MODE) {
+                ui.hearts.textContent = '♡♡♡♡♡';
+            } else {
+                const full = Math.round(((100 - c.need) / 100) * 5);
+                ui.hearts.textContent = '♥'.repeat(full) + '♡'.repeat(5 - full);
+            }
         }
 
         // RPG level / XP
@@ -1835,7 +2001,7 @@ new p5(function(p) {
     };
     window._setPaintColor  = v => { LINE_COLOR = v; };
     window._setLineWidth   = v => { LINE_WIDTH = v; };
-    window._resetNeed   = () => { if (creature) creature.need = 0; };
+    window._resetNeed   = () => { if (creature) { KO_MODE = false; creature.need = 0; } };
     window._resetLevel  = () => {
         rpgFeeds  = 0;
         playerMana = 0;
@@ -1859,6 +2025,48 @@ new p5(function(p) {
         arcAngle  = 0;
         gridPhase = 'h';
         if (m === 'off' && paintLayer) paintLayer.clear();
+    };
+
+    // ── Collectibles panel ────────────────────────────────
+    function updateCollectPanel() {
+        const grid = document.getElementById('collect-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const count = collectedIds.size;
+        const total = COLLECTIBLES.length;
+        const counter = document.getElementById('collect-counter');
+        if (counter) counter.textContent = `${count}/${total}`;
+
+        for (const col of COLLECTIBLES) {
+            const owned = collectedIds.has(col.id);
+            const cell  = document.createElement('div');
+            cell.className = 'collect-cell' + (owned ? ' owned' : '');
+            cell.title = owned ? `${col.name}\n${col.desc}` : '???';
+
+            const img = document.createElement('img');
+            img.src = col.file;
+            img.alt = '';
+            cell.appendChild(img);
+
+            const lbl = document.createElement('div');
+            lbl.className = 'collect-lbl';
+            lbl.textContent = owned ? col.name : '???';
+            cell.appendChild(lbl);
+
+            const rar = document.createElement('div');
+            rar.className = `collect-rar rar-${col.rarity}`;
+            rar.textContent = col.rarity;
+            cell.appendChild(rar);
+
+            grid.appendChild(cell);
+        }
+    }
+
+    window._openCollect = function() {
+        const panel = document.getElementById('collect-panel');
+        if (!panel) return;
+        const isOpen = panel.classList.toggle('open');
+        if (isOpen) updateCollectPanel();
     };
 
     // ── RPG panel helpers ──────────────────────────────────

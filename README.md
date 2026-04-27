@@ -13,7 +13,7 @@ Want to create a character in an RPG that can grow automatically.
 
 ### Why this direction
 
-Since childhood, I have been exposed to many RPG games. So I was wondering, why can't the characters in RPGs grow gradually? I enjoy the feeling of the level gradually increasing. Every time I LEVEL UP, every time I see a new weapon equipped or acquire new skills, there is a different feeling.
+Since childhood I have been drawn to RPG games — the feeling of a level gradually climbing, a new weapon equipping, a skill unlocking. The familiar grew from a simple idea: a character that grows on its own, without needing to be played, but still needing to be cared for.
 
 ### Who is this for
 
@@ -40,29 +40,29 @@ The target audience is gamers.
 
 ## Familiar
 
-Introduce your familiar. What is it?
+The familiar is a pixel-art RPG warrior that lives in the browser. It fights monsters autonomously, levels up through battle, and responds to the user's attention — growing stronger when cared for, deteriorating when ignored.
 
 ### Name & identity
 
-Give your familiar a name. What kind of entity is it — creature, object, spirit, something else? What does it look like?
+The familiar is a nameable humanoid warrior rendered in pixel art style. The player assigns a name via the sidebar input. It appears as a small armoured figure that shrinks into battle stance during combat and expands to full size when at rest. Its face responds to sound, state, and mouse proximity.
 
 ### The metaphor
 
-What does your familiar represent or evoke? What idea, feeling, or topic is it an expression of?
+The familiar is an expression of progression and dependency. It represents the compulsive satisfaction of watching a level climb — the XP bar filling, the new weapon equipping, the stats growing. It also reflects how that satisfaction requires maintenance: the character deteriorates without presence, mirroring how digital things demand ongoing attention to stay alive.
 
 ### Personality
 
-How does it behave? What are its characteristic traits? Is it anxious, curious, demanding, shy? What makes it feel like a distinct entity and not just a program?
+In the happy state it bounces eagerly and picks fights. When neglected it shakes and fades, becoming visibly distressed. Loud sounds excite it into chasing the cursor. It talks back — celebrating victories, complaining about abandonment, calling out when left to fight alone. It feels distinct because its state is persistent and personal: it remembers how long you were gone and holds it against you.
 
 ### Why this concept
 
-What drew you to this particular familiar? What does it mean to you?
+RPG progression has been a constant thread since childhood. The familiar is an attempt to make that feeling ambient — a character that grows on its own without requiring direct play, but still needs presence and care to thrive. It is the RPG loop stripped to its emotional core.
 
 ---
 
 ## Need
 
-Your familiar must "want" or "need" something. Describe the mechanic.
+The familiar's core mechanic is a Need value that rises continuously over time, representing hunger, loneliness, and the cost of being left alone.
 
 ### What it wants
 
@@ -78,13 +78,13 @@ Clicking the canvas feeds the familiar, reducing the need value. Winning battles
 
 ### The attention economy angle
 
-Your familiar is, in some way, part of the attention economy — it asks something of the viewer. What does it ask for, and why did you design it that way? Is this a critique, a reflection, something neutral?
+The familiar asks for clicks — a deliberate, recurring gesture of attention. This mirrors how games and apps train users to return regularly through reward loops and decay mechanics. It is both a critique and an honest reflection: the need system makes visible the dependency that most digital companions keep hidden.
 
 ---
 
 ## States
 
-Describe the states your familiar can be in and how it moves between them.
+The familiar moves between four states driven by need level, input, and time.
 
 ### States
 
@@ -113,7 +113,7 @@ localStorage saves need value, XP, level, equipped weapons, decorations, and the
 
 ## Inputs
 
-Your familiar must respond to at least two different types of input. Document them here.
+The familiar responds to four types of input, each representing a different mode of presence.
 
 ### Input 1 — type and why
 
@@ -143,4 +143,4 @@ The need decay rate doubles when the browser tab loses focus, reflecting that th
 
 ### Inputs you considered but didn't use
 
-Did you explore any input types that didn't end up working or fitting?
+Keyboard shortcuts for feeding and battle were considered but dropped — they made the interaction feel like a game controller rather than a relationship. Scroll-based input was also tested but triggered too easily while the user was browsing other content on the page.

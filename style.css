@@ -486,3 +486,112 @@ body {
     min-width: unset;
     padding: 8px;
 }
+
+/* ════════════════════════════════════
+   COLLECTIBLES
+════════════════════════════════════ */
+
+.collect-bar {
+    width: 100%;
+}
+
+.collect-toggle-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1a1628;
+    border: 1px solid #2e2848;
+    border-radius: 6px;
+    color: #a080d0;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.collect-toggle-btn:hover {
+    background: #221c3a;
+    border-color: #7050d0;
+    color: #ffd050;
+}
+
+.collect-count {
+    background: #281e4a;
+    border: 1px solid #3d3560;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 9px;
+    color: #9060ff;
+    letter-spacing: 0.05em;
+}
+
+.collect-panel {
+    display: none;
+    background: #12101a;
+    border: 1px solid #2e2848;
+    border-radius: 6px;
+    padding: 8px;
+    margin-top: -4px;
+}
+.collect-panel.open { display: block; }
+
+.collect-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+}
+
+.collect-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: #16122a;
+    border: 1px solid #1e1a30;
+    border-radius: 5px;
+    padding: 4px 2px 3px;
+    filter: grayscale(1) brightness(0.25);
+    transition: filter 0.2s, border-color 0.2s;
+    cursor: default;
+}
+.collect-cell.owned {
+    filter: none;
+    border-color: #3d3560;
+}
+.collect-cell.owned:hover {
+    border-color: #9060ff;
+    background: #1e1830;
+}
+
+.collect-cell img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    display: block;
+}
+
+.collect-lbl {
+    font-size: 7px;
+    color: #5a5070;
+    text-align: center;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    word-break: break-word;
+}
+.collect-cell.owned .collect-lbl { color: #c0b0e8; }
+
+.collect-rar {
+    font-size: 6px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+.rar-common   { color: #a0a0a0; }
+.rar-uncommon { color: #60c060; }
+.rar-rare     { color: #4080ff; }
+.rar-epic     { color: #c060ff; }
