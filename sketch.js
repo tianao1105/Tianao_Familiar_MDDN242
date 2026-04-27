@@ -595,8 +595,8 @@ new p5(function(p) {
     }
 
     function updateSpells(c) {
-        // Mana regeneration — always active, Orb boosts rate
-        let manaRegen = 0.12;
+        // Mana regeneration — base + per-level bonus + Orb bonus
+        let manaRegen = 0.12 + (rpgLevel() - 1) * 0.008;
         for (const idx of currentWeapons) {
             if (idx !== undefined && weaponNames[idx] === 'Orb') manaRegen += 0.10;
         }
@@ -1302,8 +1302,6 @@ new p5(function(p) {
     let fireCooldown  = 0;
     let spells        = [];
 
-    const XP_PER_LEVEL = 20;
-
     const RPG_LINES = {
         happy:      ['HP restored!', 'Power surges within~', 'Feeling blessed...', 'Full strength!'],
         neutral:    ['HP fading...', 'I hunger...', 'Awaiting orders.', 'Need sustenance.'],
@@ -1311,8 +1309,23 @@ new p5(function(p) {
         excited:    ['I hear you!', 'Hm? Who\'s there?', 'Are you talking to me?', 'I\'m listening...'],
     };
 
-    function rpgLevel() { return Math.floor(rpgFeeds / XP_PER_LEVEL) + 1; }
-    function rpgXP()    { return rpgFeeds % XP_PER_LEVEL; }
+    // XP required to advance from level lv to lv+1: starts at 20, grows by 15 per level
+    function xpForLevel(lv) { return 20 + (lv - 1) * 15; }
+
+    // Cumulative XP needed to reach level lv from scratch
+    function xpToReachLevel(lv) {
+        if (lv <= 1) return 0;
+        const n = lv - 1;
+        return 20 * n + 15 * n * (n - 1) / 2;
+    }
+
+    function rpgLevel() {
+        let lv = 1;
+        while (xpToReachLevel(lv + 1) <= rpgFeeds) lv++;
+        return lv;
+    }
+
+    function rpgXP() { return rpgFeeds - xpToReachLevel(rpgLevel()); }
 
     // ── Nameplate: Lv + Name + ♥ hearts ─────────────────────
     function drawNameplate(c) {
@@ -1447,7 +1460,7 @@ new p5(function(p) {
 
         // ── XP bar (bottom strip) ──
         let xpY   = p.height - xpH;
-        let xpRat = rpgXP() / XP_PER_LEVEL;
+        let xpRat = rpgXP() / xpForLevel(rpgLevel());
         p.fill(18, 14, 32);
         p.rect(0, xpY, p.width, xpH);
         if (xpRat > 0) {
@@ -1820,8 +1833,9 @@ new p5(function(p) {
 
         // RPG level / XP
         if (ui.lvEl)   ui.lvEl.textContent   = rpgLevel();
-        if (ui.xpEl)   ui.xpEl.textContent   = `${rpgXP()}/${XP_PER_LEVEL}`;
-        if (ui.xpFill) ui.xpFill.style.width = (rpgXP() / XP_PER_LEVEL * 100) + '%';
+        const xpNeed = xpForLevel(rpgLevel());
+        if (ui.xpEl)   ui.xpEl.textContent   = `${rpgXP()}/${xpNeed}`;
+        if (ui.xpFill) ui.xpFill.style.width = (rpgXP() / xpNeed * 100) + '%';
 
         ui.needBar.style.width = c.need + '%';
         ui.needBar.style.backgroundColor =
