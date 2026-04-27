@@ -2,8 +2,6 @@
 
 A pixel-style virtual companion based on p5.js, featuring an RPG combat system, real-time weather, and background with day and night changes.
 
----
-
 ## Design Statement
 
 The starting point was a simple question: if this were my companion, I'd want us to fight together in an RPG world, and when I'm away, I'd want them to keep going on their own, growing stronger until I returned.
@@ -13,8 +11,6 @@ The first version was just that: a companion quietly accumulating experience ove
 The combat started feeling too flat, so I introduced level-scaled monsters, Normal, Elite, and Boss, and gave the companion level-based stats and magic skills to match. That led to working out how spells and weapons should interact with each other: mana costs, cooldown priority, range differences between water and fire.
 
 Finally, I reworked the UI to feel like a proper RPG, a dark panel styled after the equipment and character screens you'd find in an actual game.
-
----
 
 ## Function Introduction
 
