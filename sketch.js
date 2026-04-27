@@ -1743,8 +1743,17 @@ new p5(function(p) {
 
     function updateMic(c) {
         if (!micActive) return;
+        micDialogCooldown = Math.max(0, micDialogCooldown - 1);
         c.micLevel = getMicLevel();
-        if (c.micLevel > MIC_THRESHOLD) c.exciteTimer = EXCITED_FRAMES;
+        if (c.micLevel > MIC_THRESHOLD) {
+            c.exciteTimer = EXCITED_FRAMES;
+            if (micDialogCooldown === 0) {
+                const line = MIC_LINES[Math.floor(p.random(MIC_LINES.length))];
+                rpgDialog      = { text: line, life: 220, maxLife: 220 };
+                rpgDialogTimer = 180;
+                micDialogCooldown = 320;   // ~5 s at 60 fps before re-triggering
+            }
+        }
     }
 
 

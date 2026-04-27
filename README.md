@@ -17,8 +17,52 @@ Since childhood I have been drawn to RPG games — the feeling of a level gradua
 
 ### Who is this for
 
-The target audience is gamers.
+The target audience is players who grew up with RPG games and enjoy progression systems — levelling up, equipping gear, unlocking skills. It also suits anyone drawn to virtual-pet mechanics, where a digital companion responds to presence, neglect, and care.
 
+#### Trigger conditions
+
+| Trigger | Effect |
+|---------|--------|
+| Click anywhere on canvas | Feeds the familiar (restores HP); revives it when KO'd |
+| Click the creature directly | Same as above |
+| Ambient sound above threshold | Excited state — pupils enlarge, familiar speaks a sound-reaction line |
+| 30 s without any click | Auto-battle activates — monsters spawn, familiar fights alone |
+| Need > 70 | Distressed state — shakes, fades, dialogue becomes urgent |
+| Need = 100 | KO — battle stops, familiar collapses; click anywhere to revive |
+| Monster killed | XP gained; random chance to drop a collectible item |
+| Level up | Max HP +10, ATK +1, SPD +1; Water Magic unlocks at Lv 5, Fire Magic at Lv 10 |
+| Tab loses focus | Need decay rate doubles — the familiar knows it is being ignored |
+
+#### Weapon dialogue
+
+Each equipped weapon adds a coloured stat bonus next to the relevant stat in the sidebar:
+
+| Weapon | Stat bonus | Effect in battle |
+|--------|-----------|-----------------|
+| Sword | +12 ATK (red) | Increases melee damage |
+| Hammer | +18 ATK (orange) | Highest melee damage, slower swing |
+| Dagger | +0.8 SPD (green) | Attack rate increases noticeably |
+| Shield | +8% DEF (blue) | Reduces all incoming damage |
+| Orb | +regen MP (purple) | Boosts mana regeneration each frame |
+| Wand | +✦ (violet) | Familiar stays at centre and casts spells from range |
+
+Two weapons can be equipped at once. Click **Roll** to randomise both slots. Weapons stack — equipping two Orbs doubles the mana bonus.
+
+#### Basic operations
+
+| Action | How |
+|--------|-----|
+| Feed familiar | Click anywhere on canvas (outside HUD) |
+| Equip weapons | Click the Roll button or either weapon slot |
+| Toggle battle | Click the Battle button or the sword icon in the HUD |
+| Change appearance | Click Dress for a random colour palette |
+| Open collectibles | Click the Collectibles bar — dimmed items are not yet collected |
+| Adjust hunger speed | Need decay slider in Settings |
+| Adjust feed strength | Feed amount slider in Settings |
+| Heal to full | Heal button in Settings — resets need to zero |
+| Reset level | Reset Level button in Settings — clears all XP |
+
+---
 
 ### Visual references
 
@@ -52,7 +96,7 @@ The familiar is an expression of progression and dependency. It represents the c
 
 ### Personality
 
-In the happy state it bounces eagerly and picks fights. When neglected it shakes and fades, becoming visibly distressed. Loud sounds excite it into chasing the cursor. It talks back — celebrating victories, complaining about abandonment, calling out when left to fight alone. It feels distinct because its state is persistent and personal: it remembers how long you were gone and holds it against you.
+In the happy state it bounces eagerly and picks fights. When neglected it shakes and fades, becoming visibly distressed. Loud sounds excite it — pupils dilate and it speaks aloud, reacting to the noise. It talks back — celebrating victories, complaining about abandonment, calling out when left to fight alone. It feels distinct because its state is persistent and personal: it remembers how long you were gone and holds it against you.
 
 ### Why this concept
 
@@ -93,7 +137,7 @@ The familiar moves between four states driven by need level, input, and time.
 | Happy | Bouncy, fully opaque, need ≤ 30 |
 | Neutral | Slightly transparent, gentle bounce, need 30–70 |
 | Distressed | Shaking, 50% transparent, need > 70 |
-| Excited | Large pupils, chases mouse cursor, triggered by loud sound via microphone |
+| Excited | Large pupils, stays in place, speaks a sound-reaction line — triggered by loud ambient sound via microphone |
 
 ### Transitions
 
@@ -135,7 +179,7 @@ The familiar responds to four types of input, each representing a different mode
 
 **Type:** Microphone (ambient sound level)
 
-The microphone activates on first canvas click. When sound exceeds the threshold, the familiar enters the excited state — pupils enlarge and it chases the mouse cursor for 40 frames.
+The microphone activates on first canvas click. When ambient sound exceeds the threshold, the familiar enters the excited state — pupils enlarge and it speaks a sound-reaction line ("I can hear you!", "Are you talking to me?", etc.). A cooldown of ~5 seconds prevents repeated triggering.
 
 **Type:** Page focus / visibility
 
