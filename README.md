@@ -1,10 +1,10 @@
-**Generative System**
+## Generative System
 
 MDDN242 2026 — Tianao Wang
 
 This project is similar to an RPG-style mini-game. You can engage in simple monster battles for leveling up, and possess a small amount of equipment and magic. Change the battle scene according to the location's weather and time.
 
-**Design Intent**
+## Design Intent
 
 ### The goal
 
