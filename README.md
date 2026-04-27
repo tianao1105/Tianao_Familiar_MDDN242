@@ -1,190 +1,195 @@
-## Generative System
+## Wickman — Generative System
 
 MDDN242 2026 — Tianao Wang
 
-This project is similar to an RPG-style mini-game. You can engage in simple monster battles for leveling up, and possess a small amount of equipment and magic. Change the battle scene according to the location's weather and time.
+Wickman is a pixel-art RPG character who lives in the browser. He fights monsters, levels up, collects gear, and casts spells on his own. The background changes with the real weather and time of day wherever you are.
 
 
 ## Design Intent
 
 ### The goal
 
-Want to create a character in an RPG that can grow automatically.
+I wanted an RPG character that grows by itself — without needing to be actively played.
 
 ### Why this direction
 
-Since childhood I have been drawn to RPG games — the feeling of a level gradually climbing, a new weapon equipping, a skill unlocking. The familiar grew from a simple idea: a character that grows on its own, without needing to be played, but still needing to be cared for.
+I've been playing RPGs since I was a kid. The level climbing, the new weapon dropping, the skill finally unlocking — that feeling never gets old. The question was whether I could make it ambient. Something running in a tab, growing on its own, but still needing you to show up once in a while.
 
 ### Who is this for
 
-The target audience is players who grew up with RPG games and enjoy progression systems — levelling up, equipping gear, unlocking skills. It also suits anyone drawn to virtual-pet mechanics, where a digital companion responds to presence, neglect, and care.
+Anyone who's ever left an RPG running just to watch the numbers go up. Also anyone who's killed a Tamagotchi by forgetting about it.
 
-#### Trigger conditions
+#### How it works — triggers
 
-| Trigger | Effect |
+| Trigger | What happens |
 |---------|--------|
-| Click anywhere on canvas | Feeds the familiar (restores HP); revives it when KO'd |
-| Click the creature directly | Same as above |
-| Ambient sound above threshold | Excited state — pupils enlarge, familiar speaks a sound-reaction line |
-| 30 s without any click | Auto-battle activates — monsters spawn, familiar fights alone |
-| Need > 70 | Distressed state — shakes, fades, dialogue becomes urgent |
-| Need = 100 | KO — battle stops, familiar collapses; click anywhere to revive |
-| Monster killed | XP gained; random chance to drop a collectible item |
-| Level up | Max HP +10, ATK +1, SPD +1; Water Magic unlocks at Lv 5, Fire Magic at Lv 10 |
-| Tab loses focus | Need decay rate doubles — the familiar knows it is being ignored |
+| Click anywhere on canvas | Feeds Wickman (restores HP); revives him when KO'd |
+| Loud ambient sound | Excited state — pupils enlarge, he reacts to the noise |
+| 30 s without any click | Auto-battle starts — monsters spawn, he fights alone |
+| Need > 70 | Distressed — shakes, fades, dialogue gets urgent |
+| Need = 100 | KO — he walks back to centre and says something |
+| Monster killed | XP gained; random chance to drop a collectible |
+| Level up | Max HP +10, ATK +1, SPD +1; spells unlock at Lv 5 and Lv 10 |
+| Tab loses focus | Need rises twice as fast |
 
-#### Weapon dialogue
+#### Weapons
 
-Each equipped weapon adds a coloured stat bonus next to the relevant stat in the sidebar:
+| Weapon | Bonus | Effect |
+|--------|-------|--------|
+| Sword | +12 ATK | More melee damage |
+| Hammer | +18 ATK | Highest damage, slower swing |
+| Dagger | +0.8 SPD | Attacks noticeably faster |
+| Shield | +8% DEF | Takes less damage |
+| Orb | +regen MP | Mana regenerates faster |
+| Wand | +✦ | Stays at centre, casts from range |
 
-| Weapon | Stat bonus | Effect in battle |
-|--------|-----------|-----------------|
-| Sword | +12 ATK (red) | Increases melee damage |
-| Hammer | +18 ATK (orange) | Highest melee damage, slower swing |
-| Dagger | +0.8 SPD (green) | Attack rate increases noticeably |
-| Shield | +8% DEF (blue) | Reduces all incoming damage |
-| Orb | +regen MP (purple) | Boosts mana regeneration each frame |
-| Wand | +✦ (violet) | Familiar stays at centre and casts spells from range |
+Two weapons at once. Click **Roll** to randomise. Two Orbs stacks the mana bonus.
 
-Two weapons can be equipped at once. Click **Roll** to randomise both slots. Weapons stack — equipping two Orbs doubles the mana bonus.
-
-#### Basic operations
+#### Basic controls
 
 | Action | How |
 |--------|-----|
-| Feed familiar | Click anywhere on canvas (outside HUD) |
-| Equip weapons | Click the Roll button or either weapon slot |
-| Toggle battle | Click the Battle button or the sword icon in the HUD |
-| Change appearance | Click Dress for a random colour palette |
-| Open collectibles | Click the Collectibles bar — dimmed items are not yet collected |
-| Adjust hunger speed | Need decay slider in Settings |
-| Adjust feed strength | Feed amount slider in Settings |
-| Heal to full | Heal button in Settings — resets need to zero |
-| Reset level | Reset Level button in Settings — clears all XP |
+| Feed | Click anywhere on the canvas |
+| Equip weapons | Roll button or click a weapon slot |
+| Toggle battle | Battle button or the sword icon in the HUD |
+| Change appearance | Dress button |
+| Collectibles | Click the Collectibles bar |
+| Settings | Need decay slider, feed amount slider, Heal, Reset Level |
 
 ---
 
 ### Visual references
 
-- [Open-Meteo](https://api.open-meteo.com/v1/forecast)  — Real-time weather data (temperature and weather code) for background colour tinting
-- [WorldTimeAPI](https://worldtimeapi.org/api/ip) — Local timezone detection for accurate clock display
-- [Nominatim](https://nominatim.openstreetmap.org/reverse) — Reverse geocoding to retrieve city name from coordinates
-
+- [Open-Meteo](https://api.open-meteo.com/v1/forecast) — weather data (temperature + weather code) for background tinting
+- [WorldTimeAPI](https://worldtimeapi.org/api/ip) — local timezone for the clock
+- [Nominatim](https://nominatim.openstreetmap.org/reverse) — reverse geocoding to get city name from coordinates
 
 ### Artists, designers, sites
 
-- Refers to the equipment bar in World of Warcraft
+- Equipment layout based on World of Warcraft's character panel
 
 ### Movements or aesthetics
 
-- pixel art — the lo-fi aesthetic of early games, where limited resolution forces every detail to be intentional
-
+- Pixel art — the constraint forces every detail to be deliberate. Low resolution as a style choice, not a limitation.
 
 ---
 
 ## Familiar
 
-The familiar is a pixel-art RPG warrior that lives in the browser. It fights monsters autonomously, levels up through battle, and responds to the user's attention — growing stronger when cared for, deteriorating when ignored.
+Wickman is a pixel-art RPG warrior who lives in the browser. He fights monsters, levels up, and reacts to whoever's watching — or not watching.
 
 ### Name & identity
 
-The familiar is a nameable humanoid warrior rendered in pixel art style. The player assigns a name via the sidebar input. It appears as a small armoured figure that shrinks into battle stance during combat and expands to full size when at rest. Its face responds to sound, state, and mouse proximity.
+He's a small humanoid warrior. You can rename him in the sidebar. In battle he shrinks down and chases monsters; outside of battle he drifts back to the centre and idles. His face reacts to sound and changes with his mood.
 
 ### The metaphor
 
-The familiar is an expression of progression and dependency. It represents the compulsive satisfaction of watching a level climb — the XP bar filling, the new weapon equipping, the stats growing. It also reflects how that satisfaction requires maintenance: the character deteriorates without presence, mirroring how digital things demand ongoing attention to stay alive.
+Wickman is about the satisfaction of progression — watching a number go up, a new weapon appear, a stat increase. But it also works the other way: if you ignore him long enough he deteriorates, gets distressed, and eventually collapses. The same loop that makes RPGs feel rewarding also makes them feel like an obligation.
 
 ### Personality
 
-In the happy state it bounces eagerly and picks fights. When neglected it shakes and fades, becoming visibly distressed. Loud sounds excite it — pupils dilate and it speaks aloud, reacting to the noise. It talks back — celebrating victories, complaining about abandonment, calling out when left to fight alone. It feels distinct because its state is persistent and personal: it remembers how long you were gone and holds it against you.
+When he's healthy he's eager and bouncy and picks fights on his own. When he's been ignored he shakes, fades out, and starts saying things. Loud noises startle him. If you leave him in the middle of a battle and come back, he'll let you know. He remembers how long you were gone.
 
 ### Why this concept
 
-RPG progression has been a constant thread since childhood. The familiar is an attempt to make that feeling ambient — a character that grows on its own without requiring direct play, but still needs presence and care to thrive. It is the RPG loop stripped to its emotional core.
+I've always liked games where things keep happening even when you're not playing. Idle games, auto-battlers, Tamagotchis. I wanted to build something that felt like that — a character with a life outside of active play, but one that still needs you to come back.
 
 ---
 
 ## Need
 
-The familiar's core mechanic is a Need value that rises continuously over time, representing hunger, loneliness, and the cost of being left alone.
+Wickman has a Need value that rises constantly over time. It's basically hunger, but also loneliness. When it hits 100 he collapses.
 
 ### What it wants
 
-The familiar needs attention and interaction. Its Need value rises continuously over time — faster when the tab is out of focus, slower when the user is present. It also accumulates need based on how long the user has been away since the last visit.
+Clicks. The Need value drops when you click on him. It rises faster when the tab is out of focus, slower when you're there. It also remembers how long you were away — come back after a few hours and he'll already be in bad shape.
 
-### What happens when the need goes unmet
+### What happens when it goes unmet
 
-As need rises, the familiar shifts from `happy` → `neutral` → `distressed`. In distressed state it shakes, becomes semi-transparent, and displays urgent dialogue. In battle mode, unmet need also represents HP damage taken from monsters.
+As Need rises he goes from `happy` → `neutral` → `distressed`. Distressed means shaking, fading, and increasingly annoyed dialogue. In battle, high Need also represents HP damage — he's fighting hurt.
 
 ### What satisfies it
 
-Clicking the canvas feeds the familiar, reducing the need value. Winning battles earns XP and levels up the familiar, increasing its max HP and stats. The familiar responds with bounce animations, floating text, and dialogue.
+Clicking feeds him. Winning battles earns XP and levels him up. Each level increases his stats and raises his max HP. He responds with floating text and dialogue.
 
 ### The attention economy angle
 
-The familiar asks for clicks — a deliberate, recurring gesture of attention. This mirrors how games and apps train users to return regularly through reward loops and decay mechanics. It is both a critique and an honest reflection: the need system makes visible the dependency that most digital companions keep hidden.
+He asks for clicks. Deliberate, recurring clicks. That's the same mechanic every app and game uses to bring you back — the difference here is that it's visible and intentional. It's a reflection more than a critique, but the mechanic is honest about what it's doing.
 
 ---
 
 ## States
 
-The familiar moves between four states driven by need level, input, and time.
-
-### States
-
-| State | Appearance / behaviour |
-|-------|------------------------|
+| State | Look / behaviour |
+|-------|-----------------|
 | Happy | Bouncy, fully opaque, need ≤ 30 |
 | Neutral | Slightly transparent, gentle bounce, need 30–70 |
 | Distressed | Shaking, 50% transparent, need > 70 |
-| Excited | Large pupils, stays in place, speaks a sound-reaction line — triggered by loud ambient sound via microphone |
+| Excited | Big pupils, speaks aloud — triggered by loud sound |
+| KO | Fades to near-transparent, drifts to centre, says something |
 
 ### Transitions
 
-- **Time-based:** need rises every frame at a fixed decay rate, pushing the familiar from happy toward distressed
-- **Input-based:** clicking feeds the familiar and drops need; mic input above threshold triggers excited state for 40 frames
-- **Threshold-based:** state switches at need values 30 and 70; battle mode activates automatically after 30 seconds without a click
+- Need rises every frame — faster when tab is unfocused, faster still when you've been away for hours
+- Clicking drops need; loud sound triggers the excited state for ~40 frames
+- At need 30 and 70 the state flips; at need 100 he goes KO
+- No clicks for 30 seconds → auto-battle starts on its own
 
 ### Autonomous behaviour
 
-When no one is interacting, the familiar drifts back to the centre of the canvas. After 30 seconds without a click, it enters auto-battle mode — spawning monsters and fighting them alone. When the user returns and clicks, it exits battle mode and says *"You left me to fight alone?!"*
+When nothing is happening, Wickman drifts back to the centre. After 30 seconds without a click he starts spawning monsters and fighting alone. When you come back and click, he exits battle mode and complains about it.
 
-### Persistence across visits
+### Persistence
 
-localStorage saves need value, XP, level, equipped weapons, decorations, and the timestamp of the last visit. On return, the familiar calculates how long the user was away and adds accumulated need accordingly. A long absence means returning to a distressed familiar; a quick revisit feels continuous.
+localStorage keeps Need, XP, level, weapons, collectibles, and the timestamp of the last visit. On return it calculates how long you were gone and adds to Need accordingly. Leave for a few hours, come back to a distressed Wickman. Leave for a day, come back to a dead one.
 
 ---
 
 ## Inputs
 
-The familiar responds to four types of input, each representing a different mode of presence.
+### Input 1 — Mouse click
 
-### Input 1 — type and why
+Clicking is the most direct form of attention. It's deliberate — you have to mean it. Feeds Wickman, exits auto-battle, and activates the microphone on first click.
 
-**Type:** Mouse click
+### Input 2 — Time and weather
 
-**Why this input:** Clicking is the most direct form of attention — it requires deliberate action, not just passive presence.
+The background changes with the real hour (midnight navy → dawn rose → midday sage → dusk violet) and with weather data — rain cools and darkens it, snow brightens it, storms deepen it. The idea was that Wickman exists in the same environment as the person watching him.
 
-**How the familiar responds:** Feeds the familiar (reduces need), exits idle auto-battle mode, and activates the microphone on first click.
+### Additional inputs
 
-### Input 2 — type and why
+**Microphone** — activates on first click. Loud sounds trigger the excited state. Wickman reacts with things like "Are you talking to me?" There's a ~5 second cooldown between triggers.
 
-**Type:** Time of day and real-time weather API
+**Tab focus** — Need rises twice as fast when the tab is hidden. He knows when you've switched away.
 
-**Why this input:** The familiar exists alongside the user's real world. Having the background reflect actual weather and time of day makes it feel like a living environment rather than a static screen.
+### Inputs considered but not used
 
-**How the familiar responds:** Background colour interpolates through a palette tied to the hour (midnight navy → dawn rose → midday sage → dusk violet). Weather data shifts the tint further — rain darkens and cools, snow brightens, storms deepen.
+Keyboard shortcuts — felt like controlling a game rather than caring for something. Scroll input — triggered too easily while browsing other content in the same session.
 
-### Any additional inputs
+---
 
-**Type:** Microphone (ambient sound level)
+## AI Disclosure
 
-The microphone activates on first canvas click. When ambient sound exceeds the threshold, the familiar enters the excited state — pupils enlarge and it speaks a sound-reaction line ("I can hear you!", "Are you talking to me?", etc.). A cooldown of ~5 seconds prevents repeated triggering.
+### Tools used
 
-**Type:** Page focus / visibility
+- Claude (claude-sonnet-4-6) via Claude Code — Anthropic's CLI, running as a VS Code extension
 
-The need decay rate doubles when the browser tab loses focus, reflecting that the familiar is aware of being ignored.
+### How you used them
 
-### Inputs you considered but didn't use
+Ongoing conversation inside VS Code across multiple sessions. I'd describe what I wanted — usually in Chinese, sometimes in English — and Claude would write or edit the code. I'd test it in the browser and give the next instruction. It worked more like pair programming than copy-pasting.
 
-Keyboard shortcuts for feeding and battle were considered but dropped — they made the interaction feel like a game controller rather than a relationship. Scroll-based input was also tested but triggered too easily while the user was browsing other content on the page.
+### What you used AI for
+
+- All the JavaScript in `sketch.js` — battle system, spells, monster variants, collectibles, KO state, XP curve, mana scaling, sound dialogue
+- CSS for the sidebar, collectibles grid, state badges
+- HTML structure for the equipment panel and skill slots
+- Writing and editing this README
+
+### What worked
+
+Describing behaviour rather than implementation. "When HP hits zero, have him walk back to the centre and then say something" worked in one pass. Small, specific requests worked much better than big vague ones.
+
+```
+
+### What didn't work
+
+Vague requests like "make battle feel better" — they produced changes I didn't actually want. Narrowing to something like "increase monster speed when the character is happy, reduce it when distressed" gave much better results. Early README drafts were also way too long and formal; I had to keep asking to cut them back.

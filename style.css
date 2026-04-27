@@ -89,10 +89,10 @@ body {
 
 .rpg-clock {
     font-size: 13px;
-    color: #6050a0;
+    color: #a090cc;
     white-space: nowrap;
 }
-.rpg-ampm { font-size: 9px; opacity: 0.7; }
+.rpg-ampm { font-size: 9px; opacity: 0.8; }
 
 /* ── Weather ── */
 .rpg-weather {
@@ -106,7 +106,7 @@ body {
     color: #9080c0;
 }
 .weather-desc { flex: 1; }
-.weather-city  { font-size: 10px; color: #5a5070; text-align: right; }
+.weather-city  { font-size: 10px; color: #8878a8; text-align: right; }
 
 /* ── Vitals (hearts + XP) ── */
 .rpg-vitals { display: flex; flex-direction: column; gap: 6px; }
@@ -133,7 +133,7 @@ body {
     border-radius: 3px;
     transition: width 0.5s ease;
 }
-.rpg-xp-label { font-size: 10px; color: #6050a0; white-space: nowrap; }
+.rpg-xp-label { font-size: 10px; color: #a090cc; white-space: nowrap; }
 
 /* ── Equipment area (3-column grid) ── */
 .equip-area {
@@ -176,7 +176,7 @@ body {
 .equip-icon img { width: 30px; height: 30px; object-fit: contain; }
 .equip-lbl {
     font-size: 8px;
-    color: #5a5070;
+    color: #8878a8;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     line-height: 1;
@@ -278,7 +278,7 @@ body {
 }
 .char-need-label {
     font-size: 9px;
-    color: #5a5070;
+    color: #8878a8;
     text-align: center;
     margin-top: 3px;
     letter-spacing: 0.04em;
@@ -303,7 +303,7 @@ body {
 }
 .stat-lbl {
     font-size: 8px;
-    color: #5a5070;
+    color: #8878a8;
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
@@ -364,7 +364,7 @@ body {
     justify-content: center;
     font-size: 8px;
     font-weight: 700;
-    color: #5a5070;
+    color: #8878a8;
     letter-spacing: 0.04em;
     z-index: 3;
 }
@@ -407,7 +407,7 @@ body {
     transform: translateY(-1px);
 }
 .rpg-btn:active { transform: translateY(0); }
-.rpg-btn.secondary { color: #7060a0; }
+.rpg-btn.secondary { color: #9080c0; }
 .rpg-btn.secondary:hover { color: #ffd050; }
 
 /* ── Settings (collapsible) ── */
@@ -424,7 +424,7 @@ body {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.06em;
-    color: #6050a0;
+    color: #9080c0;
     cursor: pointer;
     user-select: none;
     transition: color 0.15s;
@@ -446,7 +446,7 @@ body {
 }
 .rpg-setting-row label {
     font-size: 10px;
-    color: #7060a0;
+    color: #9080c0;
     white-space: nowrap;
     width: 72px;
     flex-shrink: 0;

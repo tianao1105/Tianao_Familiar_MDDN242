@@ -428,6 +428,7 @@ new p5(function(p) {
 
     let BATTLE_MODE           = false;
     let KO_MODE               = false;   // true when need hit 100 — frozen until fed
+    let koDialogShown         = false;   // dialogue fires once creature reaches center
     let monsters              = [];
     let monsterSpawnTimer     = 0;
     let attackTimer           = 0;
@@ -496,10 +497,30 @@ new p5(function(p) {
     // ── Monster tier definitions ──────────────────────────────────
     // tier: 1=Normal  2=Elite  3=Boss
     const MONSTER_BASE = [
-        { tier: 1, label: 'Normal', baseHp: 30,  baseRadius: 15, speed: 1.4, xpBase: 3,  dmgBase: 8,  col: [200,200,200] },
-        { tier: 2, label: 'Elite',  baseHp: 70,  baseRadius: 24, speed: 0.9, xpBase: 8,  dmgBase: 15, col: [255,200,60]  },
-        { tier: 3, label: 'Boss',   baseHp: 160, baseRadius: 52, speed: 0.5, xpBase: 18, dmgBase: 25, col: [255,80,80]   },
+        { tier: 1, baseHp: 30,  baseRadius: 15, speed: 1.4, xpBase: 3,  dmgBase: 8  },
+        { tier: 2, baseHp: 70,  baseRadius: 24, speed: 0.9, xpBase: 8,  dmgBase: 15 },
+        { tier: 3, baseHp: 160, baseRadius: 52, speed: 0.5, xpBase: 18, dmgBase: 25 },
     ];
+
+    // Visual and stat variants per tier — tint is [r,g,b] for p.tint(), null = no tint
+    const MONSTER_VARIANTS = {
+        1: [
+            { label: 'Normal',  tint: null,          col: [200,200,200], hpM: 1.00, dmgM: 1.00 },
+            { label: 'Forest',  tint: [160,255,160], col: [100,210,100], hpM: 1.20, dmgM: 0.90 },
+            { label: 'Flame',   tint: [255,160, 80], col: [255,140, 60], hpM: 0.85, dmgM: 1.30 },
+            { label: 'Frost',   tint: [140,200,255], col: [100,180,255], hpM: 1.15, dmgM: 0.85 },
+        ],
+        2: [
+            { label: 'Elite',   tint: null,          col: [255,200, 60], hpM: 1.00, dmgM: 1.00 },
+            { label: 'Shadow',  tint: [180,130,255], col: [160,100,240], hpM: 1.00, dmgM: 1.25 },
+            { label: 'Poison',  tint: [160,255,140], col: [120,220, 80], hpM: 1.30, dmgM: 0.90 },
+        ],
+        3: [
+            { label: 'Boss',    tint: null,          col: [255, 80, 80], hpM: 1.00, dmgM: 1.00 },
+            { label: 'Infernal',tint: [255,180, 60], col: [255,140, 30], hpM: 0.90, dmgM: 1.40 },
+            { label: 'Ancient', tint: [200,220,255], col: [180,200,255], hpM: 1.50, dmgM: 1.10 },
+        ],
+    };
 
     // How many of each tier can appear per level bracket [Normal, Elite, Boss]
     // Boss reaches 50% at lv 100
@@ -524,13 +545,17 @@ new p5(function(p) {
             cumul += w[i];
             if (roll < cumul) { base = MONSTER_BASE[i]; break; }
         }
+        // pick a random visual/stat variant for this tier
+        const variants = MONSTER_VARIANTS[base.tier];
+        const variant  = variants[Math.floor(p.random(variants.length))];
+
         const lvMult  = 1 + (lv - 1) * 0.18;
         const sizeVar = p.random(0.75, 1.35);
         const radius  = Math.round((base.baseRadius + (lv - 1) * (base.tier * 0.8)) * sizeVar);
-        const maxHp   = Math.round(base.baseHp * lvMult * (radius / base.baseRadius));
-        const dmg     = Math.round(base.dmgBase * (1 + (lv - 1) * 0.12));
+        const maxHp   = Math.round(base.baseHp * lvMult * (radius / base.baseRadius) * variant.hpM);
+        const dmg     = Math.round(base.dmgBase * (1 + (lv - 1) * 0.12) * variant.dmgM);
         const xp      = base.xpBase + (lv - 1) * base.tier;
-        return { tier: base.tier, label: base.label, col: base.col,
+        return { tier: base.tier, label: variant.label, col: variant.col, tint: variant.tint,
                  type: base.tier, maxHp, speed: base.speed, radius, xpReward: xp, dmgToPlayer: dmg };
     }
 
@@ -545,7 +570,7 @@ new p5(function(p) {
         else                 { mx = p.width + def.radius + 10; my = p.random(p.height); }
         monsters.push({
             x: mx, y: my, type: def.type,
-            tier: def.tier, label: def.label, col: def.col,
+            tier: def.tier, label: def.label, col: def.col, tint: def.tint,
             hp: def.maxHp, maxHp: def.maxHp,
             speed: def.speed, radius: def.radius,
             xpReward: def.xpReward, dmgToPlayer: def.dmgToPlayer,
@@ -791,11 +816,14 @@ new p5(function(p) {
             p.drawingContext.globalAlpha = alpha / 255;
             let img = monsterImgs[m.type];
             if (img) {
+                if (m.tint) p.tint(m.tint[0], m.tint[1], m.tint[2]);
                 p.imageMode(p.CENTER);
                 p.image(img, 0, 0, size, size);
+                if (m.tint) p.noTint();
             } else {
+                const fc = m.col || [200, 60, 60];
                 p.noStroke();
-                p.fill(200, 60, 60, alpha);
+                p.fill(fc[0], fc[1], fc[2], alpha);
                 p.circle(0, 0, size);
             }
 
@@ -1023,7 +1051,6 @@ new p5(function(p) {
         drawMonsters();
         drawSpells();
         drawCreature(creature);
-        if (KO_MODE) drawKOOverlay();
         drawWeapon(creature);
         drawNameplate(creature);
         tryRpgDialog(creature);
@@ -1040,10 +1067,10 @@ new p5(function(p) {
     // ============================================================
 
     function updateCreature(c) {
-        // KO: frozen until fed — no need decay, exit battle
+        // KO: drift back to center, then speak once arrived
         if (KO_MODE) {
             c.need       = 100;
-            c.sizeTarget = 1.0;   // grow back to full size while fainted
+            c.sizeTarget = 1.0;
             miniMode     = false;
             c.state      = getState(c);
             let s        = STATES[c.state];
@@ -1052,6 +1079,19 @@ new p5(function(p) {
             c.sizeScale  = p.lerp(c.sizeScale, c.sizeTarget, 0.1);
             c.breathe   += 0.018;
             c.bob       += 0.012;
+            // drift toward origin
+            c.wanderTargetX = 0;
+            c.wanderTargetY = 0;
+            c.wanderX = p.lerp(c.wanderX, 0, 0.04);
+            c.wanderY = p.lerp(c.wanderY, 0, 0.04);
+            c.x = c.originX + c.wanderX;
+            c.y = c.originY + c.wanderY;
+            // speak once close enough to center
+            if (!koDialogShown && Math.hypot(c.wanderX, c.wanderY) < 25) {
+                koDialogShown  = true;
+                rpgDialog      = { text: 'You actually let me die?!', life: 999, maxLife: 999 };
+                rpgDialogTimer = 999;
+            }
             return;
         }
 
@@ -1061,7 +1101,9 @@ new p5(function(p) {
 
         // KO trigger: need hit 100
         if (c.need >= 100) {
-            KO_MODE = true;
+            KO_MODE       = true;
+            koDialogShown = false;
+            rpgDialog     = null;
             if (BATTLE_MODE) {
                 BATTLE_MODE       = false;
                 autoBattleActive  = false;
@@ -1071,8 +1113,6 @@ new p5(function(p) {
                 attackTimer       = 0;
                 updateBattleBtn();
             }
-            rpgDialog      = { text: '...KO\'d... Click to revive me...', life: 999, maxLife: 999 };
-            rpgDialogTimer = 999;
             return;
         }
 
@@ -1142,25 +1182,6 @@ new p5(function(p) {
     // ============================================================
     //  DRAWING
     // ============================================================
-
-    function drawKOOverlay() {
-        // Dark vignette + KO text
-        p.push();
-        p.noStroke();
-        p.fill(0, 0, 0, 120);
-        p.rect(0, 0, p.width, p.height);
-
-        let pulse = 0.85 + 0.15 * p.sin(p.frameCount * 0.06);
-        p.textAlign(p.CENTER, p.CENTER);
-        p.textSize(48 * pulse);
-        p.fill(255, 40, 40, 200);
-        p.text('KO', p.width / 2, p.height / 2 - 30);
-
-        p.textSize(13);
-        p.fill(220, 180, 180, 180);
-        p.text('Click anywhere to revive', p.width / 2, p.height / 2 + 26);
-        p.pop();
-    }
 
     function drawCreature(c) {
         p.push();
@@ -1291,7 +1312,7 @@ new p5(function(p) {
     //  RPG SYSTEM
     // ============================================================
 
-    let RPG_NAME       = 'FAMILIAR';
+    let RPG_NAME       = 'WICKMAN';
     let rpgFeeds       = 0;
     let floatNums      = [];
     let rpgDialog      = null;
@@ -1441,8 +1462,9 @@ new p5(function(p) {
         if (KO_MODE) {
             // Revive from KO — restore to mid-HP and clear KO state
             KO_MODE        = false;
+            koDialogShown  = false;
             creature.need  = 65;
-            rpgDialog      = { text: "I'm back! Don't leave me again!", life: 260, maxLife: 260 };
+            rpgDialog      = { text: "...Don't let that happen again.", life: 260, maxLife: 260 };
             rpgDialogTimer = 180;
             spawnFloat(creature.x, creature.y, 'REVIVED!', [80, 215, 95]);
             return;
@@ -1834,8 +1856,9 @@ new p5(function(p) {
         // RPG level / XP
         if (ui.lvEl)   ui.lvEl.textContent   = rpgLevel();
         const xpNeed = xpForLevel(rpgLevel());
-        if (ui.xpEl)   ui.xpEl.textContent   = `${rpgXP()}/${xpNeed}`;
-        if (ui.xpFill) ui.xpFill.style.width = (rpgXP() / xpNeed * 100) + '%';
+        const xpPct  = Math.floor(rpgXP() / xpNeed * 100);
+        if (ui.xpEl)   ui.xpEl.textContent   = `${xpPct}%`;
+        if (ui.xpFill) ui.xpFill.style.width = xpPct + '%';
 
         ui.needBar.style.width = c.need + '%';
         ui.needBar.style.backgroundColor =
@@ -1988,7 +2011,7 @@ new p5(function(p) {
     // ============================================================
 
     window._setRpgName = name => {
-        RPG_NAME = name.trim().toUpperCase() || 'FAMILIAR';
+        RPG_NAME = name.trim().toUpperCase() || 'WICKMAN';
     };
 
     window._toggleDeco = key => {
