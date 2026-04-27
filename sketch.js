@@ -1099,28 +1099,9 @@ new p5(function(p) {
         // Calm: drift back to origin.
         if (c.exciteTimer > 0) {
             c.exciteTimer--;
-            let mouseOnCanvas = p.mouseX >= 0 && p.mouseX <= p.width &&
-                                p.mouseY >= 0 && p.mouseY <= p.height;
-            if (mouseOnCanvas) {
-                const ORBIT_RADIUS = CREATURE_SIZE * 0.55;
-                let distToMouse = p.dist(c.x, c.y, p.mouseX, p.mouseY);
-                if (distToMouse > ORBIT_RADIUS * 1.5) {
-                    c.wanderTargetX = p.mouseX - c.originX;
-                    c.wanderTargetY = p.mouseY - c.originY;
-                } else {
-                    c.orbitAngle   += 0.025;
-                    c.wanderTargetX = (p.mouseX - c.originX) + Math.cos(c.orbitAngle) * ORBIT_RADIUS;
-                    c.wanderTargetY = (p.mouseY - c.originY) + Math.sin(c.orbitAngle) * ORBIT_RADIUS;
-                }
-            } else {
-                c.wanderChangeTimer--;
-                if (c.wanderChangeTimer <= 0) {
-                    let pad = CREATURE_SIZE * 0.6;
-                    c.wanderTargetX = p.random(pad, p.width  - pad) - c.originX;
-                    c.wanderTargetY = p.random(pad, p.height - pad) - c.originY;
-                    c.wanderChangeTimer = p.floor(p.random(30, 70));
-                }
-            }
+            // Sound-excited: stay in place, drift gently toward origin
+            c.wanderTargetX = p.lerp(c.wanderTargetX, 0, 0.04);
+            c.wanderTargetY = p.lerp(c.wanderTargetY, 0, 0.04);
         } else {
             if (BATTLE_MODE) {
                 const wandMode = currentWeapons.some(i => i !== undefined && weaponNames[i] === 'wand');
