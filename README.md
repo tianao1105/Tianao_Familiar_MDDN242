@@ -1,116 +1,19 @@
-# Familiar
+**Generative System**
 
-A pixel-style virtual companion based on p5.js, featuring an RPG combat system, real-time weather, and background with day and night changes.
+MDDN242 2026 — Tianao Wang
 
-## Design Statement
+This project is similar to an RPG-style mini-game. You can engage in simple monster battles for leveling up, and possess a small amount of equipment and magic. Change the battle scene according to the location's weather and time.
 
-The starting point was a simple question: if this were my companion, I'd want us to fight together in an RPG world, and when I'm away, I'd want them to keep going on their own, growing stronger until I returned.
+**Design Intent**
 
-The first version was just that: a companion quietly accumulating experience over time, waiting. From there, I added monsters and an idle auto-battle system so they could fight alone while I was gone. Then came weapons and decorations to give them more personality, followed by weapon stat bonuses that fed into the companion's own attribute panel.
+### The goal
 
-The combat started feeling too flat, so I introduced level-scaled monsters, Normal, Elite, and Boss, and gave the companion level-based stats and magic skills to match. That led to working out how spells and weapons should interact with each other: mana costs, cooldown priority, range differences between water and fire.
+Want to create a character in an RPG that can grow automatically.
 
-Finally, I reworked the UI to feel like a proper RPG, a dark panel styled after the equipment and character screens you'd find in an actual game.
+### Why this direction
 
-## Function Introduction
+Since childhood, I have been exposed to many RPG games. So I was wondering, why can't the characters in RPGs grow gradually? I enjoy the feeling of the level gradually increasing. Every time I LEVEL UP, every time I see a new weapon equipped or acquire new skills, there is a different feeling.
 
-### Partner System
-- Partners have **Need values**, which increase automatically over time.
-- Clicking on the canvas can feed the partner, reducing the need value.
-- The need value affects the partner's state: `happy` / `neutral` / `distressed` / `excited`.
-- If the page is not opened for a long time, the need value will accumulate based on the duration of the absence.
+### Who is this for
 
-### RPG Panel
-
-| Attribute | Explanation |
-|-----------|-------------|
-| HP | Converted from the demand value. The lower the demand, the higher the HP. |
-| MP | Automatically replenished during battles, used for skill activation. |
-| ATK | Attack power, increases with level. |
-| SPD | Movement speed, increases with level. |
-| DEF | Defense reduction (in %), +1% per level from 1 to 10, +0.5% per level after 10. |
-
-### Level and Experience
-- Earn XP by defeating monsters
-- Level up every 20 XP points, and various attributes will increase accordingly
-- The level can be reset in the settings menu
-
-### Battle System
-- Click the **Battle** button to activate the battle mode.
-- Monsters spawn from the edge of the screen and start chasing once they enter the sensing range of the screen.
-- Allies automatically attack the nearest monster.
-- **Monsters are divided into three levels**: Normal / Elite / Boss. The proportion of Bosses dynamically adjusts according to the player's level (at level 100, Bosses account for approximately 50%).
-
-### Skill System
-
-| Skill | Unlock Level | Range | Damage | Mana Consumption |
-|-------|--------------|-------|--------|------------------|
-| Water Bomb | Level 5 | 260 px | Attack × 1.4 | 15 |
-| Fireball | Level 10 | 520 px | Attack × 2.2 | 25 |
-
-- After level 10, fireballs are released first; during the cooling period of fireballs, water bombs are released as a substitute.
-- The skill icon is displayed below the sidebar attributes, with a cooling mask and a ready highlight indication.
-
-### Weapon System
-- Click **Roll** to randomly equip two weapons
-- Each weapon has an exclusive attribute bonus, which is displayed after the corresponding attribute.
-
-| Weapon | Exclusive Attribute | Effect |
-|--------|---------------------|--------|
-| Sword | ATK | +12 Attack |
-| Hammer | ATK | +18 Attack |
-| Dagger | SPD | Increases movement speed |
-| Shield | DEF | +8% Damage reduction |
-| Orb | MP | Accelerates Mana regeneration |
-| Wand | ATK | Fires an additional secondary projectile when casting spells |
-
-### Automatic Battle upon Hang-up
-- If there is no click on the page for more than 30 seconds, the battle mode will automatically start.
-- Clicking on the canvas will restore the normal state. The companions will say: *"You left me to fight alone?!"*
-
-### Day and Night with Weather
-- The background color changes according to the actual time (deep blue at midnight → rose color in the morning → light green at noon → orange-red in the evening)
-- If the browser allows location tracking, it automatically retrieves the local weather and superimposes the corresponding color tone (warm color for sunny days, cool gray for rainy days, bright white for snowy days)
-
-### Decoration System
-The left column of the sidebar allows you to switch between decorations: hat / crown / bow tie / blush / glitter.
-
----
-
-## Operating Instructions
-
-| Operation | Effect |
-|-----------|--------|
-| Click the canvas | Feed / Resume idle state |
-| Feed | Feed |
-| Clear | Clear the canvas doodles |
-| Heal | Full health (reduces required value to zero) |
-| Roll | Randomly change weapons |
-| Battle | Switch to combat mode |
-| Dress | Randomly change clothes |
-| Reset Level | Reset level and experience |
-
-
----
-
-## File Structure
-
-```
-├── index.html        # Page structure and RPG sidebar
-├── style.css         # Styles
-├── sketch.js         # Main logic (p5.js)
-└── image/
-    ├── human.png         # Character portrait
-    ├── crown.png         # Toggle icon for sidebar
-    ├── water_magic.png   # Water bomb icon
-    ├── fair_magic.png    # Fireball icon
-    ├── sword.png         # Weapon image
-    └── ...               # Other weapon / monster images
-```
-
----
-
-## AI Disclosure
-
-The concept, visual design, character identity, and overall creative direction of this project are entirely the author's own work. Claude was used as a coding assistant to help translate those ideas into functioning code ,including feature implementation, debugging, and performance optimisation. Every decision about what to build, how it should look, and how it should feel was made by the author.
-
+The target audience is gamers.
