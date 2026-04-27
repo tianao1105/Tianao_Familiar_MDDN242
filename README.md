@@ -1,3 +1,4 @@
+# Wickman
 ## Wickman — Generative System
 
 MDDN242 2026 — Tianao Wang
@@ -171,7 +172,7 @@ Keyboard shortcuts — felt like controlling a game rather than caring for somet
 
 ### Tools used
 
-- Claude (claude-sonnet-4-6) via Claude Code — Anthropic's CLI, running as a VS Code extension
+- Claude ， running as a VS Code extension
 
 ### How you used them
 
