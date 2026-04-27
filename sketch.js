@@ -514,14 +514,14 @@ new p5(function(p) {
     }
 
     function updateSpells(c) {
-        if (!BATTLE_MODE) return;
-
-        // Mana regeneration — Orb boosts rate
+        // Mana regeneration — always active, Orb boosts rate
         let manaRegen = 0.12;
         for (const idx of currentWeapons) {
             if (idx !== undefined && weaponNames[idx] === 'Orb') manaRegen += 0.10;
         }
         playerMana = Math.min(playerMaxMana(), playerMana + manaRegen);
+
+        if (!BATTLE_MODE) return;
 
         waterCooldown = Math.max(0, waterCooldown - 1);
         fireCooldown  = Math.max(0, fireCooldown  - 1);
