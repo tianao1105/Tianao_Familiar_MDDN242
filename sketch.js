@@ -445,8 +445,8 @@ new p5(function(p) {
     // ── Monster tier definitions ──────────────────────────────────
     // tier: 1=Normal  2=Elite  3=Boss
     const MONSTER_BASE = [
-        { tier: 1, label: 'Normal', baseHp: 30,  baseRadius: 22, speed: 1.4, xpBase: 3,  dmgBase: 8,  col: [200,200,200] },
-        { tier: 2, label: 'Elite',  baseHp: 70,  baseRadius: 34, speed: 0.9, xpBase: 8,  dmgBase: 15, col: [255,200,60]  },
+        { tier: 1, label: 'Normal', baseHp: 30,  baseRadius: 15, speed: 1.4, xpBase: 3,  dmgBase: 8,  col: [200,200,200] },
+        { tier: 2, label: 'Elite',  baseHp: 70,  baseRadius: 24, speed: 0.9, xpBase: 8,  dmgBase: 15, col: [255,200,60]  },
         { tier: 3, label: 'Boss',   baseHp: 160, baseRadius: 52, speed: 0.5, xpBase: 18, dmgBase: 25, col: [255,80,80]   },
     ];
 
@@ -463,9 +463,10 @@ new p5(function(p) {
         return                [ 0, 4,  6];  // boss 60%
     }
 
-    function scaledMonsterDef(lv) {
-        // pick tier by weighted random
-        const w   = tierWeights(lv);
+    function scaledMonsterDef(lv, noBoss = false) {
+        // pick tier by weighted random; noBoss=true redirects boss weight to Normal/Elite
+        const w = tierWeights(lv).slice();
+        if (noBoss) w[2] = 0;
         const total = w.reduce((a,b) => a+b, 0);
         let roll  = p.random(total), cumul = 0, base = MONSTER_BASE[0];
         for (let i = 0; i < MONSTER_BASE.length; i++) {
@@ -473,7 +474,8 @@ new p5(function(p) {
             if (roll < cumul) { base = MONSTER_BASE[i]; break; }
         }
         const lvMult  = 1 + (lv - 1) * 0.18;
-        const radius  = Math.round(base.baseRadius + (lv - 1) * (base.tier * 0.8));
+        const sizeVar = p.random(0.75, 1.35);
+        const radius  = Math.round((base.baseRadius + (lv - 1) * (base.tier * 0.8)) * sizeVar);
         const maxHp   = Math.round(base.baseHp * lvMult * (radius / base.baseRadius));
         const dmg     = Math.round(base.dmgBase * (1 + (lv - 1) * 0.12));
         const xp      = base.xpBase + (lv - 1) * base.tier;
@@ -482,7 +484,8 @@ new p5(function(p) {
     }
 
     function spawnMonster() {
-        let def  = scaledMonsterDef(rpgLevel());
+        const bossAlive = monsters.some(m => m.alive && m.tier === 3);
+        let def  = scaledMonsterDef(rpgLevel(), bossAlive);
         let edge = Math.floor(p.random(4));
         let mx, my;
         if      (edge === 0) { mx = p.random(p.width);        my = -def.radius - 10; }
