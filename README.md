@@ -26,6 +26,7 @@ The target audience is gamers.
 -[WorldTimeAPI](https://worldtimeapi.org/api/ip) — Local timezone detection for accurate clock display
 -[Nominatim](https://nominatim.openstreetmap.org/reverse) — Reverse geocoding to retrieve city name from coordinates
 
+
 ### Artists, designers, sites
 
 - Name — what about their work resonated
