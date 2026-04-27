@@ -1002,15 +1002,22 @@ new p5(function(p) {
             }
         } else {
             if (BATTLE_MODE) {
-                let target = getBattleTarget(c);
-                if (target) {
-                    // Chase the nearest monster, clamped to canvas
-                    c.wanderTargetX = p.constrain(target.x - c.originX,
-                                                  -c.originX + 20, p.width  - c.originX - 20);
-                    c.wanderTargetY = p.constrain(target.y - c.originY,
-                                                  -c.originY + 20, p.height - c.originY - 20);
+                const wandMode = currentWeapons.some(i => i !== undefined && weaponNames[i] === 'wand');
+                if (wandMode) {
+                    // Wand equipped — stay near center and cast from range
+                    c.wanderTargetX = 0;
+                    c.wanderTargetY = 0;
                 } else {
-                    updateIdleMovement(c);
+                    let target = getBattleTarget(c);
+                    if (target) {
+                        // Chase the nearest monster, clamped to canvas
+                        c.wanderTargetX = p.constrain(target.x - c.originX,
+                                                      -c.originX + 20, p.width  - c.originX - 20);
+                        c.wanderTargetY = p.constrain(target.y - c.originY,
+                                                      -c.originY + 20, p.height - c.originY - 20);
+                    } else {
+                        updateIdleMovement(c);
+                    }
                 }
             } else {
                 updateIdleMovement(c);
