@@ -120,5 +120,5 @@ The left column of the sidebar allows you to switch between decorations: hat / c
 
 ## AI Disclosure
 
-The concept, visual design, character identity, and overall creative direction of this project are entirely the author's own work. [Claude](https://claude.ai) (Anthropic) was used as a coding assistant to help translate those ideas into functioning code ,including feature implementation, debugging, and performance optimisation. Every decision about what to build, how it should look, and how it should feel was made by the author.
+The concept, visual design, character identity, and overall creative direction of this project are entirely the author's own work. Claude was used as a coding assistant to help translate those ideas into functioning code ,including feature implementation, debugging, and performance optimisation. Every decision about what to build, how it should look, and how it should feel was made by the author.
 
