@@ -90,14 +90,6 @@ The left column of the sidebar allows you to switch between decorations: hat / c
 | Dress | Randomly change clothes |
 | Reset Level | Reset level and experience |
 
----
-
-## Technology Stack
-
-- [p5.js](https://p5js.org/) v1.7.0 — Canvas Rendering
-- [Open-Meteo](https://open-meteo.com/) — Free Weather API
-- [WorldTimeAPI](https://worldtimeapi.org/) — Time Zone Time API
-- [Nominatim](https://nominatim.org/) — Reverse Geocoding (City Name)
 
 ---
 
