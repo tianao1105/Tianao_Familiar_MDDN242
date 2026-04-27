@@ -22,9 +22,9 @@ The target audience is gamers.
 
 ### Visual references
 
--Open-Meteo[https://api.open-meteo.com/v1/forecast]  — Real-time weather data (temperature and weather code) for background colour tinting
--WorldTimeAPI[https://worldtimeapi.org/api/ip] — Local timezone detection for accurate clock display
--Nominatim[https://nominatim.openstreetmap.org/reverse] — Reverse geocoding to retrieve city name from coordinates
+-[Open-Meteo](https://api.open-meteo.com/v1/forecast)  — Real-time weather data (temperature and weather code) for background colour tinting
+-[WorldTimeAPI](https://worldtimeapi.org/api/ip) — Local timezone detection for accurate clock display
+-[Nominatim](https://nominatim.openstreetmap.org/reverse) — Reverse geocoding to retrieve city name from coordinates
 
 ### Artists, designers, sites
 
