@@ -24,7 +24,7 @@ The target audience is gamers.
 
 -Open-Meteo(https://api.open-meteo.com/v1/forecast)  — Real-time weather data (temperature and weather code) for background colour tinting
 -WorldTimeAPI(https://worldtimeapi.org/api/ip) — Local timezone detection for accurate clock display
--Nominatim(nominatim.openstreetmap.org/reverse) — Reverse geocoding to retrieve city name from coordinates
+-Nominatim(https://nominatim.openstreetmap.org/reverse) — Reverse geocoding to retrieve city name from coordinates
 
 ### Artists, designers, sites
 
