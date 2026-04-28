@@ -380,7 +380,7 @@ new p5(function(p) {
     function randomWeapon() {
         let available = WEAPON_PATHS.map((_, i) => i).filter(i => weaponImgs[i]);
         if (available.length === 0) {
-            spawnFloat(creature.x, creature.y - 20, '没有武器！', [255, 120, 120]);
+            spawnFloat(creature.x, creature.y - 20, 'No weapons!', [255, 120, 120]);
             return;
         }
         // pick 2 independently (same is allowed)

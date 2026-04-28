@@ -16,6 +16,8 @@ I wanted an RPG character that grows by itself, without needing to be actively p
 
 I've been playing RPGs since I was a kid. The level climbing, the new weapon dropping, the skill finally unlocking. That feeling never gets old. The question was whether I could make it ambient. Something running in a tab, growing on its own, but still needing you to show up once in a while.
 
+The first version was just a creature that drifted and reacted to clicks. Battle came later, once I realised nothing happened when you weren't there. Adding autonomous combat gave him a reason to move on his own, and the character made more sense from that point.
+
 ### Who is this for
 
 Anyone who's ever left an RPG running just to watch the numbers go up. Also anyone who's killed a Tamagotchi by forgetting about it.
@@ -127,7 +129,7 @@ He asks for clicks. Deliberate, recurring clicks. That's the same mechanic every
 | Neutral | Slightly transparent, gentle bounce, need 30–70 |
 | Distressed | Shaking, 50% transparent, need > 70 |
 | Excited | Big pupils, speaks aloud, triggered by loud sound |
-| KO | Fades to near-transparent, drifts to centre, says something |
+| KO | Fades to near-transparent, walks back to centre, then says something |
 
 ### Transitions
 
@@ -158,13 +160,13 @@ The background changes with the real hour (midnight navy → dawn rose → midda
 
 ### Additional inputs
 
-**Microphone**: activates on first click. Loud sounds trigger the excited state. Wickman reacts with things like "Are you talking to me?" There's a ~5 second cooldown between triggers.
+**Microphone**: activates on first click. Loud sounds trigger the excited state. Wickman reacts with things like "Are you talking to me?" There's a ~5 second cooldown between triggers. An earlier version moved him toward wherever the sound was loudest, like a tracker. It looked wrong, so I replaced it with dialogue instead.
 
 **Tab focus**: Need rises twice as fast when the tab is hidden. He knows when you've switched away.
 
 ### Inputs considered but not used
 
-Keyboard shortcuts: felt like controlling a game rather than caring for something. Scroll input: triggered too easily while browsing other content in the same session.
+Keyboard shortcuts: felt like controlling a game rather than caring for something. Scroll input: triggered too easily while browsing other content in the same session. A KO overlay was also tried early on but removed — having him walk back and speak on his own felt more like a character reaction and less like a system error.
 
 ---
 
